@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { WorkspaceModule } from './modules/workspaces/workspace.module.js';
 import { ProjectModule } from './modules/projects/project.module.js';
 import { TaskModule } from './modules/tasks/task.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { WorkspaceGuard } from './modules/workspaces/workspace.guard.js';
 import { CsrfGuard } from './modules/auth/csrf.guard.js';
 import { SessionAuthGuard } from './modules/auth/session.guard.js';
@@ -25,7 +26,7 @@ import { SessionAuthGuard } from './modules/auth/session.guard.js';
  * 公开路由用 `@Public()` 显式开放；写请求默认校验 CSRF，持有型凭据用 `@CsrfExempt()`。
  */
 @Module({
-  imports: [ConfigModule, PrismaModule, AuthModule, WorkspaceModule, ProjectModule, TaskModule],
+  imports: [ConfigModule, PrismaModule, AuthModule, WorkspaceModule, ProjectModule, TaskModule, DashboardModule],
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
