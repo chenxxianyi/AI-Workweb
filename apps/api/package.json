@@ -15,6 +15,7 @@
     "test:auth-http": "tsx --tsconfig tsconfig.test.json test/auth-http-check.ts",
     "test:session": "tsx --tsconfig tsconfig.test.json test/session-check.ts",
     "test:workspace": "tsx --tsconfig tsconfig.test.json test/workspace-check.ts",
+    "test:project": "tsx --tsconfig tsconfig.test.json test/project-check.ts",
     "auth:bootstrap": "tsx src/cli/bootstrap-owner.ts",
     "auth:recover": "tsx src/cli/recover-account.ts",
     "auth:calibrate": "tsx src/cli/password-calibrate.ts"
