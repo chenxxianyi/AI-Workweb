@@ -1,0 +1,82 @@
+/* 设计令牌（ADR-0007，F03 冻结；F07 落地到代码）
+   规则：组件不写死颜色，只用 var(--*)；深浅色由 data-theme 切换，默认跟随系统。 */
+:root {
+  color-scheme: light dark;
+
+  /* 中性色 */
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-faint: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* 语义色 */
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --primary-soft: #ccfbf1;
+  --primary-ink: #115e59;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --success: #047857;
+  --success-soft: #d1fae5;
+
+  /* 度量 */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --shadow-1: 0 1px 2px rgb(15 23 42 / 6%);
+  --shadow-2: 0 8px 24px rgb(15 23 42 / 10%);
+  --ring: 0 0 0 3px rgb(15 118 110 / 35%);
+  --header-h: 56px;
+  --sidebar-w: 216px;
+  --content-max: 1180px;
+
+  /* 字体：系统栈，不加载远程字体（离线可用） */
+  --font-sans: system-ui, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --leading: 1.6;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --surface: #121b2a;
+  --surface-2: #182334;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-faint: #7c8ba1;
+  --border: #243044;
+  --border-strong: #33415c;
+
+  --primary: #2dd4bf;
+  --primary-hover: #5eead4;
+  --primary-soft: #134e4a;
+  --primary-ink: #99f6e4;
+  --danger: #f87171;
+  --danger-soft: #450a0a;
+  --warn: #fbbf24;
+  --warn-soft: #451a03;
+  --success: #34d399;
+  --success-soft: #052e2b;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-2: 0 8px 24px rgb(0 0 0 / 45%);
+  --ring: 0 0 0 3px rgb(45 212 191 / 35%);
+}

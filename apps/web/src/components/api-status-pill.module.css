@@ -1,0 +1,40 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 2px var(--space-2);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: default;
+  min-height: 28px;
+  white-space: nowrap;
+}
+
+.pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.up {
+  border-color: var(--success);
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.down {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+  cursor: pointer;
+  min-height: 28px;
+}
+
+.checking {
+  color: var(--text-muted);
+}
