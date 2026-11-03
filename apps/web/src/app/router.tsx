@@ -4,6 +4,7 @@ import { ProtectedRoute } from '../components/protected-route';
 import { SessionExpiredDialog } from '../components/session-expired-dialog';
 import { TodayPage } from '../features/today/today-page';
 import { ProjectsPage } from '../features/projects/projects-page';
+import { ProjectDetailPage } from '../features/projects/project-detail-page';
 import { KnowledgePage } from '../features/kb/kb-page';
 import { LedgerPage } from '../features/ledger/ledger-page';
 import { SettingsPage } from '../features/settings/settings-page';
@@ -46,6 +47,7 @@ export const routes = [
         children: [
           { path: 'today', element: <TodayPage /> },
           { path: 'projects', element: <ProjectsPage /> },
+          { path: 'projects/:projectId', element: <ProjectDetailPage /> },
           { path: 'kb', element: <KnowledgePage /> },
           { path: 'ledger', element: <LedgerPage /> },
           { path: 'settings', element: <SettingsPage /> },
