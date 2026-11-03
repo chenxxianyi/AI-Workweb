@@ -23,7 +23,7 @@ New-Item -ItemType Directory -Path $filesRoot | Out-Null
 $utf8 = New-Object Text.UTF8Encoding($false)
 $excluded = New-Object 'System.Collections.Generic.List[object]'
 $copied = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-$skipDirectories = @('node_modules','.git','dist','build','coverage','.cache','.next','playwright-report','test-results','.data','.volumes','pgdata','postgres-data','backups','secrets','volumes','版本')
+$skipDirectories = @('node_modules','.git','dist','build','coverage','.cache','.next','playwright-report','test-results','.data','generated','.volumes','pgdata','postgres-data','backups','secrets','volumes','版本')
 
 function Add-SafeFile {
     param([string]$Source)

@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
-import { HealthController } from './health.controller.js';
+import { ConfigModule, PrismaModule } from './common/prisma.module.js';
+import { HealthController } from './modules/health/health.controller.js';
 
 /**
- * 最小应用壳（F04）。
- * F06 在此基础上补：配置校验、requestId、统一异常与错误封装、结构化日志、readiness 检查与事务入口。
+ * 应用根模块（F06）。
+ * F07 之后按模块加入 auth/workspaces/projects/tasks/logs/entries/ledger/transfers/preferences/audit。
  */
 @Module({
+  imports: [ConfigModule, PrismaModule],
   controllers: [HealthController],
 })
 export class AppModule {}
