@@ -1,0 +1,558 @@
+// AI 编程工作台 · 数据库 schema（F05）
+// 逻辑设计：全栈开发任务/数据库与接口设计.md（V2.0）
+// 实现约定：docs/数据库实现约定.md（F03 冻结）
+//
+// 约定：
+// - 数据库用 snake_case（@@map/@map），Prisma 模型 PascalCase/camelCase
+// - 主键 uuid 由 gen_random_uuid() 生成；时间戳 timestamptz(3)
+// - 布尔/数值 CHECK、复合外键、部分索引写在同一迁移目录的 manual.sql（Prisma 无法表达）
+// - 复合外键由 manual.sql 追加，目标表需要 UNIQUE(workspace_id, id)
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../../apps/api/src/generated/prisma"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------- 枚举
+
+enum UserStatus {
+  active
+  disabled
+
+  @@map("user_status")
+}
+
+enum MemberRole {
+  owner
+  editor
+  viewer
+
+  @@map("member_role")
+}
+
+enum MemberStatus {
+  active
+  invited
+  removed
+
+  @@map("member_status")
+}
+
+enum ProjectStage {
+  planning
+  developing
+  paused
+  done
+
+  @@map("project_stage")
+}
+
+enum TaskPriority {
+  p0
+  p1
+  p2
+
+  @@map("task_priority")
+}
+
+enum TaskStatus {
+  todo
+  doing
+  done
+
+  @@map("task_status")
+}
+
+enum EntryType {
+  note
+  design
+  adr
+  troubleshoot
+  command
+
+  @@map("entry_type")
+}
+
+enum EntryStatus {
+  draft
+  verified
+  archived
+
+  @@map("entry_status")
+}
+
+enum TransferType {
+  export_json
+  export_markdown
+  import
+
+  @@map("transfer_type")
+}
+
+enum TransferState {
+  uploaded
+  validating
+  preview_ready
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+  expired
+
+  @@map("transfer_state")
+}
+
+// ---------------------------------------------------------------- 身份与空间
+
+model User {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  emailNormalized   String    @unique @map("email_normalized") @db.VarChar(320)
+  displayName       String    @map("display_name") @db.VarChar(100)
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  status            UserStatus @default(active)
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships      WorkspaceMember[]
+  sessions         Session[]
+  preferences      UserPreference?
+  recoveryTokens   AccountRecoveryToken[]
+  createdWorkspaces Workspace[]            @relation("WorkspaceCreator")
+  auditEvents      AuditEvent[]
+
+  @@map("users")
+}
+
+model Session {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  tokenHash         String    @unique @map("token_hash") @db.VarChar(64)
+  csrfTokenHash     String    @map("csrf_token_hash") @db.VarChar(64)
+  idleExpiresAt     DateTime  @map("idle_expires_at") @db.Timestamptz(3)
+  absoluteExpiresAt DateTime  @map("absolute_expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  userAgent         String?   @map("user_agent") @db.VarChar(300)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, absoluteExpiresAt])
+  @@map("sessions")
+}
+
+model Workspace {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String    @db.VarChar(100)
+  timezone  String    @default("Asia/Shanghai") @db.VarChar(64)
+  status    String    @default("active") @db.VarChar(20)
+  createdBy String    @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version   Int       @default(1)
+
+  creator User @relation("WorkspaceCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  members WorkspaceMember[]
+  invites WorkspaceInvite[]
+  projects Project[]
+  tasks Task[]
+  logs DevelopmentLog[]
+  entries Entry[]
+  tags Tag[]
+  ledger LedgerRecord[]
+  jobs TransferJob[]
+  audits AuditEvent[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String       @map("workspace_id") @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  role        MemberRole   @default(viewer)
+  status      MemberStatus @default(active)
+  joinedAt    DateTime     @default(now()) @map("joined_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version     Int          @default(1)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model WorkspaceInvite {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId     String    @map("workspace_id") @db.Uuid
+  emailNormalized String    @map("email_normalized") @db.VarChar(320)
+  role            MemberRole @default(viewer)
+  tokenHash       String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  acceptedAt      DateTime? @map("accepted_at") @db.Timestamptz(3)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(3)
+  invitedBy       String    @map("invited_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@map("workspace_invites")
+}
+
+model AccountRecoveryToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdBy String    @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("account_recovery_tokens")
+}
+
+model UserPreference {
+  userId             String   @id @map("user_id") @db.Uuid
+  theme              String   @default("system") @db.VarChar(16)
+  defaultWorkspaceId String?  @map("default_workspace_id") @db.Uuid
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version            Int      @default(1)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model WorkspaceUserPreference {
+  workspaceId           String    @map("workspace_id") @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  tipShownAt            DateTime? @map("tip_shown_at") @db.Timestamptz(3)
+  lastBusinessExportAt  DateTime? @map("last_business_export_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version               Int       @default(1)
+
+  @@id([workspaceId, userId])
+  @@map("workspace_user_preferences")
+}
+
+// ---------------------------------------------------------------- 业务
+
+model Project {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String       @map("workspace_id") @db.Uuid
+  name           String       @db.VarChar(100)
+  repo           String?      @db.VarChar(300)
+  stack          String[]     @default([])
+  stage          ProjectStage @default(planning)
+  nextStep       String       @map("next_step") @db.VarChar(300)
+  progressManual Boolean      @default(false) @map("progress_manual")
+  manualProgress Int?         @map("manual_progress")
+  color          String?      @db.VarChar(16)
+  lastActivityAt DateTime     @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  createdBy      String       @map("created_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int          @default(1)
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  originMetadata Json?        @map("origin_metadata")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  tasks     Task[]
+  entries   Entry[]
+  ledger    LedgerRecord[]
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId, updatedAt(sort: Desc), id(sort: Desc)])
+  @@index([workspaceId, lastActivityAt])
+  @@map("projects")
+}
+
+model Task {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String       @map("workspace_id") @db.Uuid
+  projectId      String?      @map("project_id") @db.Uuid
+  title          String       @db.VarChar(200)
+  priority       TaskPriority @default(p2)
+  status         TaskStatus   @default(todo)
+  dueDate        DateTime?    @map("due_date") @db.Date
+  aiContext      String?      @map("ai_context") @db.VarChar(4000)
+  blocker        String?      @db.VarChar(4000)
+  doneAt         DateTime?    @map("done_at") @db.Timestamptz(3)
+  createdBy      String       @map("created_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int          @default(1)
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  originMetadata Json?        @map("origin_metadata")
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  entries   TaskEntry[]
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId, updatedAt(sort: Desc), id(sort: Desc)])
+  @@index([workspaceId, status, dueDate, id])
+  @@index([workspaceId, projectId, status])
+  @@map("tasks")
+}
+
+model DevelopmentLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  logDate        DateTime  @map("log_date") @db.Date
+  text           String    @db.VarChar(4000)
+  authorId       String    @map("author_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int       @default(1)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+  originMetadata Json?     @map("origin_metadata")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId, logDate(sort: Desc), createdAt(sort: Desc), id])
+  @@map("development_logs")
+}
+
+model Entry {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String      @map("workspace_id") @db.Uuid
+  type           EntryType   @default(note)
+  title          String      @db.VarChar(200)
+  summary        String?     @db.VarChar(300)
+  body           String
+  lang           String?     @db.VarChar(32)
+  projectId      String?     @map("project_id") @db.Uuid
+  source         String?     @db.VarChar(32)
+  status         EntryStatus @default(draft)
+  rating         Int?
+  createdBy      String      @map("created_by") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int         @default(1)
+  deletedAt      DateTime?   @map("deleted_at") @db.Timestamptz(3)
+  originMetadata Json?       @map("origin_metadata")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tags      EntryTag[]
+  tasks     TaskEntry[]
+  revisions EntryRevision[]
+  usage     EntryUsage?
+  ledger    LedgerRecord[]
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId, updatedAt(sort: Desc), id(sort: Desc)])
+  @@index([workspaceId, status, type, updatedAt(sort: Desc), id(sort: Desc)])
+  @@index([workspaceId, projectId])
+  @@map("entries")
+}
+
+model EntryRevision {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  entryId       String   @map("entry_id") @db.Uuid
+  body          String
+  savedAt       DateTime @default(now()) @map("saved_at") @db.Timestamptz(3)
+  savedBy       String   @map("saved_by") @db.Uuid
+  sourceVersion Int      @map("source_version")
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, entryId, savedAt(sort: Desc)])
+  @@map("entry_revisions")
+}
+
+model EntryUsage {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  entryId     String   @unique @map("entry_id") @db.Uuid
+  useCount    Int      @default(0) @map("use_count")
+  lastUsedAt  DateTime @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, entryId])
+  @@map("entry_usage")
+}
+
+model Tag {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  nameNormalized String   @map("name_normalized") @db.VarChar(32)
+  displayName    String   @map("display_name") @db.VarChar(32)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  entries   EntryTag[]
+
+  @@unique([workspaceId, nameNormalized])
+  @@unique([workspaceId, id])
+  @@map("tags")
+}
+
+model EntryTag {
+  workspaceId String @map("workspace_id") @db.Uuid
+  entryId     String @map("entry_id") @db.Uuid
+  tagId       String @map("tag_id") @db.Uuid
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, tagId])
+  @@index([workspaceId, tagId, entryId])
+  @@map("entry_tags")
+}
+
+model TaskEntry {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  taskId      String   @map("task_id") @db.Uuid
+  entryId     String   @map("entry_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, entryId])
+  @@index([workspaceId, entryId])
+  @@map("task_entries")
+}
+
+model LedgerRecord {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  recordDate     DateTime  @map("record_date") @db.Date
+  projectId      String?   @map("project_id") @db.Uuid
+  tool           String    @db.VarChar(32)
+  scene          String    @db.VarChar(32)
+  minutes        Int
+  savedMinutes   Int       @map("saved_minutes")
+  effect         Int
+  note           String?   @db.VarChar(4000)
+  entryId        String?   @map("entry_id") @db.Uuid
+  createdBy      String    @map("created_by") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int       @default(1)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+  originMetadata Json?     @map("origin_metadata")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  entry     Entry?    @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId, recordDate, scene])
+  @@index([workspaceId, projectId, recordDate])
+  @@map("ledger_records")
+}
+
+// ---------------------------------------------------------------- 可靠性
+
+model IdempotencyRecord {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  scope        String    @db.VarChar(64)
+  key          String    @db.VarChar(128)
+  requestHash  String    @map("request_hash") @db.VarChar(64)
+  status       String    @db.VarChar(16)
+  responseRef  Json?     @map("response_ref")
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([userId, workspaceId, scope, key])
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
+
+model TransferJob {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId     String        @map("workspace_id") @db.Uuid
+  actorId         String        @map("actor_id") @db.Uuid
+  type            TransferType
+  state           TransferState @default(uploaded)
+  sourceNamespace String?       @map("source_namespace") @db.VarChar(64)
+  fileRef         String?       @map("file_ref") @db.VarChar(300)
+  fileHash        String?       @map("file_hash") @db.VarChar(64)
+  planHash        String?       @map("plan_hash") @db.VarChar(64)
+  baseVersions    Json?         @map("base_versions")
+  counts          Json?
+  leaseUntil      DateTime?     @map("lease_until") @db.Timestamptz(3)
+  attempts        Int           @default(0)
+  errorCode       String?       @map("error_code") @db.VarChar(64)
+  expiresAt       DateTime?     @map("expires_at") @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items     ImportItem[]
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([state, leaseUntil, createdAt])
+  @@map("transfer_jobs")
+}
+
+model ImportItem {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId             String  @map("job_id") @db.Uuid
+  entityType        String  @map("entity_type") @db.VarChar(32)
+  sourceId          String  @map("source_id") @db.VarChar(200)
+  normalizedPayload Json    @map("normalized_payload")
+  validationResult  Json?   @map("validation_result")
+  decision          String? @db.VarChar(16)
+  beforeImage       Json?   @map("before_image")
+  appliedVersion    Int?    @map("applied_version")
+
+  job TransferJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, entityType])
+  @@map("import_items")
+}
+
+model ImportEntityMapping {
+  workspaceId         String    @map("workspace_id") @db.Uuid
+  sourceNamespace     String    @map("source_namespace") @db.VarChar(64)
+  entityType          String    @map("entity_type") @db.VarChar(32)
+  legacyId            String    @map("legacy_id") @db.VarChar(200)
+  entityId            String    @map("entity_id") @db.Uuid
+  sourceUpdatedAt     DateTime? @map("source_updated_at") @db.Timestamptz(3)
+  lastImportedVersion Int?      @map("last_imported_version")
+
+  @@id([workspaceId, sourceNamespace, entityType, legacyId])
+  @@map("import_entity_mappings")
+}
+
+model AuditEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String?  @map("workspace_id") @db.Uuid
+  actorId     String?  @map("actor_id") @db.Uuid
+  action      String   @db.VarChar(64)
+  entityType  String?  @map("entity_type") @db.VarChar(32)
+  entityId    String?  @map("entity_id") @db.Uuid
+  requestId   String?  @map("request_id") @db.VarChar(64)
+  result      String   @db.VarChar(16)
+  summary     String?  @db.VarChar(300)
+  at          DateTime @default(now()) @db.Timestamptz(3)
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  actor     User?      @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, at(sort: Desc), id])
+  @@map("audit_events")
+}

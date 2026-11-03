@@ -59,6 +59,11 @@ pnpm dev              # web: http://127.0.0.1:5173  api: http://127.0.0.1:3001/a
 | `pnpm test` | 单元测试（Vitest） |
 | `pnpm verify` | typecheck + lint + test + build（提交前自检） |
 | `pnpm db:status` / `db:start` / `db:stop` | 本地开发数据库 |
+| `pnpm db:generate` | 生成 Prisma Client（`pnpm install` 的 postinstall 也会执行） |
+| `pnpm db:migrate` / `db:deploy` | 开发迁移（生成+应用）／按已有迁移部署（CI/生产用） |
+| `pnpm db:migrate:status` | 迁移状态 |
+| `pnpm db:seed` | 写入演示数据（幂等；不会自动执行） |
+| `pnpm db:smoke` | 数据库连通性与关系读冒烟 |
 | `pnpm dev` | 并行启动前后端开发服务器 |
 
 ## 交付边界（当前阶段）

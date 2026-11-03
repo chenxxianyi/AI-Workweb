@@ -9,6 +9,7 @@
     "pnpm": ">=11.25.0"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
@@ -20,14 +21,23 @@
     "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 start",
     "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 stop",
     "db:init": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 init",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:seed": "tsx database/seeds/seed.ts",
+    "db:smoke": "tsx database/seeds/smoke.ts",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
+    "dotenv": "18.0.9",
     "eslint": "10.14.0",
     "globals": "17.14.0",
     "prettier": "3.9.10",
+    "prisma": "7.10.1",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.1"

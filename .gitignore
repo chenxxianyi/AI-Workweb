@@ -1,3 +1,6 @@
+# 生成物（Prisma Client 由 postinstall / pnpm db:generate 生成，不入库）
+apps/api/src/generated/
+
 # 依赖与构建产物
 node_modules/
 dist/
