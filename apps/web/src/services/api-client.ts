@@ -114,6 +114,13 @@ export class ApiClient {
     return this.csrfToken;
   }
 
+  /** 401 统一回调：让 AuthProvider 弹“登录已过期”，避免每个调用点各写一遍 */
+  setUnauthorizedHandler(handler: ((error: ApiError) => void) | undefined): void {
+    this.unauthorizedHandler = handler;
+  }
+
+  private unauthorizedHandler: ((error: ApiError) => void) | undefined;
+
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const method = options.method ?? 'GET';
     const url = `${this.baseUrl}${path}`;
@@ -167,8 +174,9 @@ export class ApiClient {
 
     if (!response.ok) {
       const requestId = response.headers.get('x-request-id') ?? undefined;
+      let error: ApiError;
       if (isErrorEnvelope(parsed)) {
-        throw new ApiError({
+        error = new ApiError({
           kind: 'http',
           status: response.status,
           code: parsed.error.code,
@@ -177,13 +185,16 @@ export class ApiClient {
           currentVersion: parsed.error.currentVersion,
           requestId: parsed.requestId ?? requestId,
         });
+      } else {
+        error = new ApiError({
+          kind: 'http',
+          status: response.status,
+          message: `请求失败（HTTP ${response.status}）`,
+          requestId,
+        });
       }
-      throw new ApiError({
-        kind: 'http',
-        status: response.status,
-        message: `请求失败（HTTP ${response.status}）`,
-        requestId,
-      });
+      if (error.isUnauthenticated) this.unauthorizedHandler?.(error);
+      throw error;
     }
 
     if (isEnvelope(parsed)) return parsed.data as T;

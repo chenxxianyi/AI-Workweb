@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../providers/auth-provider';
 import { useWorkspace } from '../providers/workspace-provider';
 import { useTheme } from '../providers/theme-provider';
 import { ApiStatusPill } from '../components/api-status-pill';
@@ -22,16 +24,32 @@ const NAV_ITEMS = [
   { to: '/settings', label: '设置', Icon: SettingsIcon },
 ] as const;
 
+const ROLE_LABEL: Record<string, string> = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
+
 /**
- * 应用壳（F07）：顶栏（空间切换、搜索入口、API 状态、主题）+ 侧边导航 + 主内容 + 移动底部标签栏。
- * 断点见全局样式：<768px 单列底部标签；768–1023px 折叠；≥1024px 侧边 216px。
+ * 应用壳（F07 / F11）：顶栏（空间切换、搜索入口、API 状态、主题、账号）+ 侧边导航 + 主内容 + 移动底部标签栏。
+ * 空间与角色来自真实 /auth/me；角色只做界面提示，权限边界在后端守卫。
  */
 export function AppShell(): React.JSX.Element {
-  const { workspace, workspaces, switchTo } = useWorkspace();
+  const { workspace, workspaces, role, switchTo } = useWorkspace();
+  const { user, logout } = useAuth();
   const { mode, resolved, setMode } = useTheme();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const toggleTheme = (): void => {
     setMode(mode === 'system' ? (resolved === 'dark' ? 'light' : 'dark') : mode === 'dark' ? 'light' : 'dark');
+  };
+
+  const doLogout = async (): Promise<void> => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -47,19 +65,25 @@ export function AppShell(): React.JSX.Element {
           <span className="sr-only">切换空间</span>
           <select
             className={styles.select}
-            value={workspace.id}
+            value={workspace?.workspaceId ?? ''}
             onChange={(event) => {
               switchTo(event.target.value);
             }}
+            disabled={workspaces.length <= 1}
           >
             {workspaces.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-                {item.placeholder === true ? '（占位）' : ''}
+              <option key={item.workspaceId} value={item.workspaceId}>
+                {item.name}（{ROLE_LABEL[item.role] ?? item.role}）
               </option>
             ))}
           </select>
         </label>
+
+        {role === 'viewer' ? (
+          <span className={styles.readonlyBadge} title="当前空间为只读角色，写操作会被后端拒绝">
+            只读
+          </span>
+        ) : null}
 
         <NavLink to="/search" className={styles.searchLink} aria-label="打开全局搜索">
           <SearchIcon />
@@ -78,6 +102,20 @@ export function AppShell(): React.JSX.Element {
         >
           {resolved === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
+
+        <div className={styles.account}>
+          <span className={styles.userName} title={user?.email}>
+            {user?.displayName ?? '未登录'}
+          </span>
+          <button
+            type="button"
+            className={styles.logoutButton}
+            onClick={() => void doLogout()}
+            disabled={loggingOut}
+          >
+            {loggingOut ? '退出中…' : '退出'}
+          </button>
+        </div>
       </header>
 
       <nav className={styles.sidebar} aria-label="主导航">

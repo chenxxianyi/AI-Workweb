@@ -1,60 +1,116 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { EpochGuard } from '../services/workspace-guard';
+import { useAuth } from './auth-provider';
+import type { Membership, WorkspaceRole } from '../services/auth-api';
 
-export interface WorkspaceSummary {
-  id: string;
-  name: string;
-  role: 'owner' | 'editor' | 'viewer';
-  /** 占位数据（F10/F11 接入真实接口后移除） */
-  placeholder?: boolean;
-}
+const STORAGE_KEY = 'aiwb.workspace';
 
 interface WorkspaceContextValue {
-  workspace: WorkspaceSummary;
-  workspaces: WorkspaceSummary[];
-  /** 切换空间：取消在途请求、清空缓存、递增 epoch，旧响应一律丢弃 */
+  /** 当前空间为 null 表示用户还没有任何空间 */
+  workspace: Membership | null;
+  workspaces: Membership[];
+  role: WorkspaceRole | null;
   switchTo: (workspaceId: string) => void;
   guard: EpochGuard;
+  /** 权限判断只用于界面提示，真正的授权在后端 */
+  can: (capability: 'business.write' | 'member.manage' | 'data.export' | 'data.import') => boolean;
 }
-
-/** F07 占位空间；F10/F11 用 /workspaces 与 /auth/me 替换 */
-const PLACEHOLDER_WORKSPACES: WorkspaceSummary[] = [
-  { id: 'personal', name: '个人工作台', role: 'owner', placeholder: true },
-  { id: 'team', name: '团队空间', role: 'editor', placeholder: true },
-];
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
 
+const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 1, editor: 2, owner: 3 };
+const CAPABILITY_MIN: Record<
+  'business.write' | 'member.manage' | 'data.export' | 'data.import',
+  WorkspaceRole
+> = {
+  'business.write': 'editor',
+  'member.manage': 'owner',
+  'data.export': 'editor',
+  'data.import': 'owner',
+};
+
+function readStoredWorkspace(): string | null {
+  try {
+    return globalThis.localStorage?.getItem(STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 空间上下文（F11）。
+ *
+ * - 空间列表来自 /auth/me 的 memberships（不再有占位数据）
+ * - 选择持久化到 localStorage；切换时取消在途请求、清空缓存、递增 epoch
+ * - 角色只用于界面（禁用/隐藏按钮 + 文案说明），后端守卫才是真正边界
+ */
 export function WorkspaceProvider({ children }: { children: ReactNode }): React.JSX.Element {
+  const { memberships, status } = useAuth();
   const queryClient = useQueryClient();
   const guardRef = useRef<EpochGuard>(new EpochGuard());
-  const [workspaceId, setWorkspaceId] = useState(PLACEHOLDER_WORKSPACES[0]!.id);
+  const [selectedId, setSelectedId] = useState<string | null>(() => readStoredWorkspace());
+
+  const workspaces = memberships;
+
+  const current = useMemo<Membership | null>(() => {
+    if (workspaces.length === 0) return null;
+    const matched = workspaces.find((item) => item.workspaceId === selectedId);
+    return matched ?? workspaces[0] ?? null;
+  }, [workspaces, selectedId]);
+
+  // 首次加载或当前空间失效时，回落到第一个可用空间
+  useEffect(() => {
+    if (current === null) return;
+    if (current.workspaceId !== selectedId) {
+      setSelectedId(current.workspaceId);
+      try {
+        globalThis.localStorage?.setItem(STORAGE_KEY, current.workspaceId);
+      } catch {
+        // 隐私模式写不进：仅影响下次打开
+      }
+    }
+  }, [current, selectedId]);
 
   const switchTo = useCallback(
     (nextId: string) => {
-      if (nextId === workspaceId) return;
-      // 1) 递增 epoch：旧结果即使后返回也不会被采用
+      if (nextId === current?.workspaceId) return;
       guardRef.current.begin();
-      // 2) 取消在途查询并清空缓存，避免新空间看到旧空间数据
       void queryClient.cancelQueries();
       queryClient.clear();
-      setWorkspaceId(nextId);
+      setSelectedId(nextId);
+      try {
+        globalThis.localStorage?.setItem(STORAGE_KEY, nextId);
+      } catch {
+        // 同上
+      }
     },
-    [queryClient, workspaceId],
+    [current?.workspaceId, queryClient],
   );
 
-  const value = useMemo<WorkspaceContextValue>(() => {
-    const workspace =
-      PLACEHOLDER_WORKSPACES.find((item) => item.id === workspaceId) ?? PLACEHOLDER_WORKSPACES[0]!;
-    return {
-      workspace,
-      workspaces: PLACEHOLDER_WORKSPACES,
+  const can = useCallback<WorkspaceContextValue['can']>(
+    (capability) => {
+      if (current === null) return false;
+      return ROLE_RANK[current.role] >= ROLE_RANK[CAPABILITY_MIN[capability]];
+    },
+    [current],
+  );
+
+  const value = useMemo<WorkspaceContextValue>(
+    () => ({
+      workspace: current,
+      workspaces,
+      role: current?.role ?? null,
       switchTo,
       guard: guardRef.current,
-    };
-  }, [workspaceId, switchTo]);
+      can,
+    }),
+    [current, workspaces, switchTo, can],
+  );
+
+  // 未登录时不渲染子路由（ProtectedRoute 会处理跳转），避免空空间状态闪烁
+  void status;
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
