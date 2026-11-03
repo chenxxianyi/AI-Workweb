@@ -3,6 +3,8 @@ packages:
   - "packages/*"
   - "database"
 allowBuilds:
+  # argon2 原生模块的 install 脚本用于选择预编译二进制（F08）
+  argon2: true
   # prisma CLI 与引擎需要在安装期下载/校验查询引擎（F05）
   '@prisma/engines': true
   esbuild: true
@@ -14,3 +16,4 @@ minimumReleaseAgeExclude:
   - '@vitest/mocker@5.1.0'
   - '@vitest/spy@5.1.0'
   - vitest@5.1.0
+  - argon2@0.45.2

@@ -39,3 +39,21 @@ NestJS 默认通过 TypeScript 的 `emitDecoratorMetadata` 生成 `design:paramt
 | 开发也用 `tsc --watch` + `node --watch` | 多一个进程与产物目录，热重载比 tsx 慢；仍需为测试脚本另建运行方式 |
 | 引入 SWC + `@nestjs/swc` 装饰器元数据 | 新增构建链依赖，与 Vite/esbuild 生态不一致 |
 | 依赖 `experimentalDecorators` + 类型注入并只在生产用 tsc | 开发/测试与生产不一致，正是本 ADR 要消除的风险 |
+
+## 补充（F08，2026-11-03）：第三方 Guard 也受同一条约束影响
+
+`@nestjs/throttler` 的 `ThrottlerGuard` 在构造参数上依赖元数据解析 `Reflector`，
+在 tsx/esbuild 下启动即失败：
+
+```
+UnknownDependenciesException: Nest can't resolve dependencies of the ThrottlerGuard
+(THROTTLER:MODULE_OPTIONS, Symbol(ThrottlerStorage), ?)
+```
+
+我们无法给第三方类补 `@Inject`，因此限流改为**首方实现**
+`apps/api/src/common/rate-limit.ts`：`@RateLimit({ limit, ttlMs })` + `RateLimitGuard`
+（零构造依赖，进程内固定窗口，按 IP + 方法 + 路径计数），并作为 `APP_GUARD` 注册在
+`AppModule`。`@nestjs/throttler` 已从依赖中移除，版本矩阵同步更新。
+
+结论：**能用显式注入就不用依赖反射元数据的第三方中间件**；这条规则同样适用于
+未来的拦截器、管道与守卫选型。

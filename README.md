@@ -64,6 +64,9 @@ pnpm dev              # web: http://127.0.0.1:5173  api: http://127.0.0.1:3001/a
 | `pnpm db:migrate:status` | 迁移状态 |
 | `pnpm db:seed` | 写入演示数据（幂等；不会自动执行） |
 | `pnpm db:smoke` | 数据库连通性与关系读冒烟 |
+| `pnpm --filter @aiwb/api auth:bootstrap` | 创建首个 Owner 与个人空间（密码走 stdin，不落 shell 历史） |
+| `pnpm --filter @aiwb/api auth:recover` | 签发一次性恢复令牌（30 分钟，服务器执行） |
+| `pnpm --filter @aiwb/api auth:calibrate` | 实测 Argon2id 单次哈希耗时（校准参数） |
 | `pnpm dev` | 并行启动前后端开发服务器 |
 
 ## 交付边界（当前阶段）

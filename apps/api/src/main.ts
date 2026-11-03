@@ -6,16 +6,13 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { loadConfig, type AppConfig } from './common/config.js';
-import { createAccessLogMiddleware, logger } from './common/logger.js';
-import { AllExceptionsFilter } from './common/exception.filter.js';
-import { ResponseEnvelopeInterceptor } from './common/response.interceptor.js';
+import { logger } from './common/logger.js';
 
 /**
- * API 启动入口（F06）：
+ * API 启动入口（F06/F08）：
  * 1) 先校验配置（不合法直接退出，不用默认值掩盖错误）
- * 2) 请求 ID / 访问日志
- * 3) 统一响应封装与异常过滤
- * 4) 请求体大小限制（契约：普通 JSON ≤ 128KiB）
+ * 2) 请求体大小限制（契约：普通 JSON ≤ 128KiB）
+ * 3) 访问日志、统一信封、异常过滤、限流由 AppModule 注册，保证测试与生产一致
  */
 let config: AppConfig;
 try {
@@ -34,11 +31,8 @@ const app = await NestFactory.create<NestExpressApplication>(AppModule, {
   abortOnError: true,
 });
 
-app.use(createAccessLogMiddleware(logger));
 app.useBodyParser('json', { limit: '128kb' });
 app.setGlobalPrefix('api/v1');
-app.useGlobalFilters(new AllExceptionsFilter());
-app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
 app.enableShutdownHooks();
 app.disable('x-powered-by');
 
