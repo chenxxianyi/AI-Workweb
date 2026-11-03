@@ -21,6 +21,7 @@
     "test:ledger": "tsx --tsconfig tsconfig.test.json test/ledger-check.ts",
     "test:entry": "tsx --tsconfig tsconfig.test.json test/entry-check.ts",
     "test:revision": "tsx --tsconfig tsconfig.test.json test/revision-check.ts",
+    "test:search": "tsx --tsconfig tsconfig.test.json test/search-check.ts",
     "auth:bootstrap": "tsx src/cli/bootstrap-owner.ts",
     "auth:recover": "tsx src/cli/recover-account.ts",
     "auth:calibrate": "tsx src/cli/password-calibrate.ts"
