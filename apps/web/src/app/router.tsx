@@ -5,8 +5,8 @@ import { SessionExpiredDialog } from '../components/session-expired-dialog';
 import { TodayPage } from '../features/today/today-page';
 import { ProjectsPage } from '../features/projects/projects-page';
 import { ProjectDetailPage } from '../features/projects/project-detail-page';
-import { KnowledgePage } from '../features/kb/kb-page';
 import { LedgerPage } from '../features/ledger/ledger-page';
+import { KnowledgePage } from '../features/kb/kb-page';
 import { SettingsPage } from '../features/settings/settings-page';
 import { LoginPage } from '../features/auth/login-page';
 import { InviteAcceptPage, ResetPasswordPage } from '../features/auth/invite-pages';
@@ -48,8 +48,8 @@ export const routes = [
           { path: 'today', element: <TodayPage /> },
           { path: 'projects', element: <ProjectsPage /> },
           { path: 'projects/:projectId', element: <ProjectDetailPage /> },
-          { path: 'kb', element: <KnowledgePage /> },
           { path: 'ledger', element: <LedgerPage /> },
+          { path: 'kb', element: <KnowledgePage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'search', element: <SearchPage /> },
           { path: '*', element: <NotFoundPage /> },
