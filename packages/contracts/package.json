@@ -1,0 +1,24 @@
+{
+  "name": "@aiwb/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "前后端共享契约：响应封装、错误码、DTO 类型（由 OpenAPI 对齐）",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "5.1.0"
+  }
+}

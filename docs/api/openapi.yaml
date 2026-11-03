@@ -1,0 +1,3338 @@
+# =============================================================================
+# AI 编程工作台 API —— OpenAPI 3.1.0 契约「草案」（F03 交付物）
+#
+# 权威来源：全栈开发任务/数据库与接口设计.md（V2.0 / 2026-11-03）
+#           全栈开发任务/需求与验收矩阵.md「统一业务规则」
+# 本文件是 F03 草案；实体、约束与错误语义以《数据库与接口设计》为准。
+# 与设计文档不一致或需要补充确认之处，已在对应 description 及 F03 交付说明中列出，
+# 不在本文件内静默修改设计文档。
+# 生成前端类型前必须通过 CI 契约检查（OpenAPI lint + 破坏性差异检查 + 契约测试）；
+# CI 未通过不得据此生成客户端或改动调用方。
+# =============================================================================
+openapi: 3.1.0
+x-contract-status: draft
+x-contract-owner: F03
+x-source-of-truth: 全栈开发任务/数据库与接口设计.md
+info:
+  title: AI 编程工作台 API
+  version: 0.1.0
+  summary: F03 OpenAPI 3.1 契约草案（实体与错误以《数据库与接口设计》为准）
+  description: |
+    本文件是「AI 编程工作台」全栈项目的 API 契约草案（F03 交付物），
+    实体、约束与错误语义以《全栈开发任务/数据库与接口设计.md》（V2.0）为准，
+    校验阈值以《需求与验收矩阵》「统一业务规则」为准。
+
+    认证与会话：全部端点走同源 Cookie 会话（securityScheme sessionCookie，cookie 名 sfs_session，HttpOnly + Secure + SameSite=Lax），
+    不启用任意 CORS；开发期跨端口由 Vite 代理 /api 解决。所有写操作需带 X-CSRF-Token 头（取自 GET /auth/csrf，并与当前会话绑定），
+    登录、退出、改密均轮换会话。服务器 CLI bootstrap-owner 用于幂等创建首个账号与空间，不是公开 HTTP 接口，故不出现在本文件 paths 中。
+
+    空间边界：业务端点一律为 /workspaces/{workspaceId}/...。服务端先由会话识别 user，再校验 workspace_members，
+    最后才执行该空间内查询；非成员一律 404（不区分「不存在」与「无权」，避免探测其他空间对象）。
+    禁止只按对象 id 查询后依赖前端隐藏。
+
+    条件写 If-Match：GET 详情返回 ETag（带引号的十进制 version）且实体响应含 version。PATCH/DELETE/恢复必须带 If-Match，
+    缺失返回 428，过期返回 412，412 响应体给出可授权查看的 currentVersion。前端不得自行猜版本，也不能先读后无条件 UPDATE。
+
+    幂等 Idempotency-Key：创建类与可重试动作必须带 Idempotency-Key；幂等范围 = 账号 + 空间 + 动作 + key，
+    请求 hash 排除可变 CSRF 头但包含业务体；同 key 不同请求体返回 409；结果默认保留 7 天，指定离线事件同样 7 天。
+    结果未知的传输任务按 jobId 轮询，不得用新 key 重发。
+
+    游标分页：limit 默认 20、最大 100；cursor 为不透明串，绑定空间、排序与筛选指纹，改变筛选后必须丢弃旧 cursor；
+    大表正常滚动不使用 offset；游标分页不承诺跨多次请求的一致快照（导出另用一致性快照）。
+
+    时间与日期：时间戳为服务器 UTC ISO8601 且带 Z；业务日期为 YYYY-MM-DD（format date），按空间时区解释，
+    不当作 UTC 时刻。今日、逾期、周起点（周一）、月度统计均按 workspace.timezone（默认 Asia/Shanghai，仅 Owner 可改）。
+
+    请求体限制：普通 JSON 默认 128KiB；业务正文 octet_length(body) ≤ 20480；传输文件流式落内部临时卷，默认 ≤ 512MiB、≤ 25 万条实体。
+    超限返回 413 并明确说明，不截断内容。禁止客户端提交 createdBy、role、workspaceId 等系统字段。
+
+    错误模型：失败一律 { error: { code, message, fieldErrors? }, requestId }，见 ErrorResponse。
+    状态码：400 语法错误；401 未登录/会话过期/已吊销；403 已确认成员但角色无权，或 CSRF/来源校验失败；
+    404 不存在或不属于可访问空间；409 幂等键与体不一致、业务冲突、预览计划过期；
+    412 If-Match 版本过期；413 超限；422 字段或业务校验失败；428 缺少 If-Match；429 限流；503 依赖不可用。
+
+    读写约束：GET 不产生业务副作用（last_seen 等内部节流维护不影响业务 version）。
+    统一成功响应为 { data, meta?: { nextCursor, hasMore }, requestId }；204 表示无响应体。
+  license:
+    name: 内部项目（个人或小团队私有部署）
+servers:
+  - url: /api/v1
+    description: 同源部署；生产经反向代理，开发经 Vite 代理，均不使用跨域 CORS。
+security:
+  - sessionCookie: []
+tags:
+  - name: 认证
+    description: CSRF、登录退出、当前用户、密码与会话
+  - name: 恢复与邀请
+    description: 一次性恢复令牌与邀请接受
+  - name: 空间
+    description: 空间查询与创建（创建者成为 owner）
+  - name: 成员
+    description: 成员列表、角色变更与移除（最后 owner 保护）
+  - name: 邀请
+    description: 邀请签发、列表与撤销（列表不返回 token）
+  - name: 今日
+    description: 服务端统一业务日期的紧急项与计数聚合
+  - name: 项目
+    description: 项目 CRUD、概览与进度
+  - name: 任务
+    description: 任务 CRUD、昨日顺延与沉淀入口
+  - name: 日志
+    description: 开发日志（按业务日与创建时间分页）
+  - name: 知识
+    description: 知识条目、修订、使用统计与标签筛选
+  - name: 标签与搜索
+    description: 标签列表与空间内搜索
+  - name: 台账
+    description: AI 使用台账记录
+  - name: 统计
+    description: 月度与近 8 周聚合
+  - name: 传输
+    description: 导出、导入预览/确认与作业状态、下载
+  - name: 回收站
+    description: 软删除对象列表、恢复与硬删除
+  - name: 运维
+    description: 空间清空与健康检查
+  - name: 偏好
+    description: 个人偏好与空间内个人偏好
+  - name: 审计
+    description: 空间审计事件（owner）
+paths:
+  /auth/csrf:
+    get:
+      tags: [认证]
+      operationId: getCsrfToken
+      summary: 获取 CSRF 令牌
+      description: 同源 GET。返回绑定当前会话的 CSRF 令牌；写操作必须通过 X-CSRF-Token 回传。登录前也可调用，登录同样校验 CSRF 与来源。无业务副作用。
+      security: []
+      responses:
+        '200':
+          description: CSRF 令牌
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CsrfEnvelope' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/login:
+    post:
+      tags: [认证]
+      operationId: login
+      summary: 登录（轮换会话）
+      description: 校验来源与 CSRF，成功后轮换会话并返回新的 csrfToken 与本人空间成员关系。失败不泄露账号是否存在（统一 401 INVALID_CREDENTIALS）。登录不是资源创建；若携带 Idempotency-Key，仅用于抑制重复尝试的审计与限流计数，不会复用先前的会话响应或 token。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/logout:
+    post:
+      tags: [认证]
+      operationId: logout
+      summary: 退出当前会话
+      description: 吊销当前会话并清 cookie。天然幂等；Idempotency-Key 可选，用于客户端重试时避免重复审计噪声。
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      responses:
+        '204':
+          description: 已退出，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/me:
+    get:
+      tags: [认证]
+      operationId: getCurrentUser
+      summary: 当前用户与所属空间
+      description: 返回本人账号、空间成员关系与个人偏好。不含 password_hash、token 或内部路径。
+      responses:
+        '200':
+          description: 当前用户
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MeEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/password:
+    patch:
+      tags: [认证]
+      operationId: changePassword
+      summary: 修改密码
+      description: 必须提供当前密码；使用恢复令牌时走 /auth/recovery/complete。成功后按策略吊销其他会话并返回吊销数量。账号无 version 字段，故不使用 If-Match，而以当前密码/令牌做重认证；Idempotency-Key 可选。
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordChangeRequest' }
+      responses:
+        '200':
+          description: 密码已修改
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionRevocationEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/sessions:
+    get:
+      tags: [认证]
+      operationId: listSessions
+      summary: 本人会话列表
+      description: 只返回本人会话；不含 token 或 token 哈希。
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 会话列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/sessions/{id}:
+    delete:
+      tags: [认证]
+      operationId: revokeSession
+      summary: 吊销指定本人会话
+      description: 只能吊销本人会话。重复吊销返回 204（天然幂等）；会话无 version 字段，使用 Idempotency-Key 而非 If-Match。
+      parameters:
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      responses:
+        '204':
+          description: 已吊销，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/recovery/complete:
+    post:
+      tags: [恢复与邀请]
+      operationId: completeRecovery
+      summary: 用恢复令牌完成账号恢复
+      description: 恢复令牌由服务器 CLI 签发，默认 30 分钟且一次性；令牌不入日志。成功后设置新密码并吊销相关会话。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecoveryCompleteRequest' }
+      responses:
+        '200':
+          description: 恢复完成
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionRevocationEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 令牌已使用、已过期或已被撤销（不使用重放）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /auth/invitations/accept:
+    post:
+      tags: [恢复与邀请]
+      operationId: acceptInvitation
+      summary: 接受空间邀请
+      description: 邀请 token 一次性、默认 48 小时；已有用户只建立成员关系，不重设密码；新用户在此设置本人密码。成功后建立会话。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvitationAcceptRequest' }
+      responses:
+        '200':
+          description: 已加入空间
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 令牌已接受、已撤销或已过期；或邮箱已被其他账号占用
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces:
+    get:
+      tags: [空间]
+      operationId: listWorkspaces
+      summary: 我的空间列表
+      description: 只返回会话用户仍为有效成员的空间。
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 空间列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [空间]
+      operationId: createWorkspace
+      summary: 创建空间（创建者成为 owner）
+      description: 幂等创建；创建者自动成为 owner 并写入审计。
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkspaceCreateRequest' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 幂等键与请求体不一致，或同一用户空间名冲突
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}:
+    get:
+      tags: [空间]
+      operationId: getWorkspace
+      summary: 空间详情
+      description: 成员可见；返回 ETag 供后续 PATCH 使用。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+      responses:
+        '200':
+          description: 空间详情
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [空间]
+      operationId: updateWorkspace
+      summary: 修改空间（owner）
+      description: 仅 owner；改名或改时区需确认对日期统计的影响，未确认返回 422。时区变更写审计。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkspaceUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/members:
+    get:
+      tags: [成员]
+      operationId: listMembers
+      summary: 成员列表
+      description: 成员可见；返回 role（owner/editor/viewer）与状态。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 成员列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceMemberListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/members/{userId}:
+    patch:
+      tags: [成员]
+      operationId: updateMember
+      summary: 修改成员角色（owner）
+      description: 仅 owner。事务内锁成员集合，禁止并发移除/降级最后一位 owner（409 LAST_OWNER）。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkspaceMemberUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceMemberEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 最后一位 owner 保护或成员状态冲突
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [成员]
+      operationId: removeMember
+      summary: 移除成员（owner）
+      description: 仅 owner；最后一位 owner 不可移除（409）；同时吊销或重校验其访问。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 已移除，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 最后一位 owner 不可移除
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/invitations:
+    get:
+      tags: [邀请]
+      operationId: listInvitations
+      summary: 邀请列表（owner）
+      description: 仅 owner；列表不返回 token 或一次性链接。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 邀请列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvitationListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [邀请]
+      operationId: createInvitation
+      summary: 签发邀请（owner）
+      description: 仅 owner；token 一次性、默认 48 小时，明文一次性链接只在本次响应中出现（writeOnly），列表不再暴露。已存在成员关系返回 409。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvitationCreateRequest' }
+      responses:
+        '201':
+          description: 已签发（含一次性链接）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvitationEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 该邮箱已是成员，或幂等键与请求体不一致
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/invitations/{id}:
+    delete:
+      tags: [邀请]
+      operationId: revokeInvitation
+      summary: 撤销邀请（owner）
+      description: 仅 owner。邀请表无 version 字段，使用 Idempotency-Key 保证可重试；重复撤销返回 204。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      responses:
+        '204':
+          description: 已撤销，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 邀请已被接受，不能撤销
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/dashboard/today:
+    get:
+      tags: [今日]
+      operationId: getTodayDashboard
+      summary: 今日仪表盘
+      description: 服务端按空间时区计算业务日期，返回紧急项（逾期>0 天、doing 停滞>3 天、draft 创建>7 天）、任务计数与草稿汇总。草稿不计入任务总数。只读。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+      responses:
+        '200':
+          description: 今日聚合
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TodayDashboardEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/projects:
+    get:
+      tags: [项目]
+      operationId: listProjects
+      summary: 项目列表
+      description: 默认排除软删除；可按阶段筛选。稳定排序（updated_at DESC, id DESC）。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/tag'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 项目列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [项目]
+      operationId: createProject
+      summary: 新建项目
+      description: 幂等创建；progressManual 与 manualProgress 需成对；手动 0% 有效。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectCreateRequest' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/projects/{id}:
+    get:
+      tags: [项目]
+      operationId: getProject
+      summary: 项目详情
+      description: 成员可见；返回 ETag 与 version。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: 项目详情
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [项目]
+      operationId: updateProject
+      summary: 修改项目
+      description: 条件写；内容变化时递增 version 并刷新 lastActivityAt。归档优于删除。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [项目]
+      operationId: deleteProject
+      summary: 删除（软删除）项目
+      description: 默认软删除，30 天可恢复；不级联删除任务/知识/台账，界面显示「原项目已删除」。硬删除走回收站并在同事务将子实体 projectId 置空。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 已删除，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 项目仍被引用且不满足删除前提
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/projects/{id}/overview:
+    get:
+      tags: [项目]
+      operationId: getProjectOverview
+      summary: 项目概览（任务/知识/台账摘要）
+      description: 返回项目及三块关联摘要，每块带独立分页 meta 与各自列表入口；只读。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 项目概览
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectOverviewEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/tasks:
+    get:
+      tags: [任务]
+      operationId: listTasks
+      summary: 任务列表
+      description: 默认排除软删除与已完成之外的干扰；按 status、projectId 筛选，稳定排序。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/projectId'
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+        - $ref: '#/components/parameters/includeDeleted'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 任务列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [任务]
+      operationId: createTask
+      summary: 新建任务
+      description: 幂等创建；projectId 必须在同空间有效。done 状态与 doneAt 由服务端一致维护，客户端不得直接提交 doneAt。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskCreateRequest' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/tasks/{id}:
+    get:
+      tags: [任务]
+      operationId: getTask
+      summary: 任务详情
+      description: 成员可见；返回 ETag 与 version。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: 任务详情
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [任务]
+      operationId: updateTask
+      summary: 修改任务
+      description: 条件写。改 status=done 时同事务写 doneAt，撤销完成清 doneAt；状态、due、project 关系一并校验。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [任务]
+      operationId: deleteTask
+      summary: 删除（软删除）任务
+      description: 软删除，30 天可恢复；硬删除走回收站并清理关联行。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 已删除，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/tasks/postpone-yesterday:
+    post:
+      tags: [任务]
+      operationId: postponeYesterdayTasks
+      summary: 昨日未完成任务批量顺延
+      description: 仅 owner/editor。先以 dryRun=true 返回范围与候选，确认后在同一事务内只顺延「昨日未完成」的任务；不改更早逾期与已完成；失败整体回退。dryRun 分支不写业务数据。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostponeRequest' }
+      responses:
+        '200':
+          description: 顺延预览或执行结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostponeResultEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 预览范围已变化，需重新预览
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/logs:
+    get:
+      tags: [日志]
+      operationId: listLogs
+      summary: 开发日志列表
+      description: 按 log_date DESC、created_at DESC、id 稳定分页；可按日期区间筛选。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 日志列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DevelopmentLogListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [日志]
+      operationId: createLog
+      summary: 新建开发日志
+      description: 作者来自会话；logDate 缺省为空间业务今日。幂等创建，Enter 重复提交只存一条。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LogCreateRequest' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DevelopmentLogEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/logs/{id}:
+    get:
+      tags: [日志]
+      operationId: getLog
+      summary: 日志详情
+      description: 设计文档未单列日志详情接口；本草案补充该只读端点，用于取得当前 version/ETag 以支持条件写（否则客户端只能从列表推断版本）。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: 日志详情
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DevelopmentLogEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [日志]
+      operationId: updateLog
+      summary: 修改日志
+      description: 条件写；作者不可转移。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LogUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DevelopmentLogEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [日志]
+      operationId: deleteLog
+      summary: 删除（软删除）日志
+      description: 软删除，30 天可恢复。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 已删除，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/entries:
+    get:
+      tags: [知识]
+      operationId: listEntries
+      summary: 知识列表
+      description: 支持 title/type/status/project/tag/q 筛选，稳定排序；默认排除软删除与已归档之外按 status 过滤。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/type'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/tag'
+        - $ref: '#/components/parameters/projectId'
+        - $ref: '#/components/parameters/includeDeleted'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 知识列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [知识]
+      operationId: createEntry
+      summary: 新建知识条目
+      description: 幂等创建；body ≤ 20480 UTF-8 字节（超限 413）；status=verified 必须标题、摘要、正文完整，draft 可暂缺摘要。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntryCreateRequest' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/entries/{id}:
+    get:
+      tags: [知识]
+      operationId: getEntry
+      summary: 知识详情
+      description: 返回正文、标签、使用统计与 ETag；正文按原文返回，前端负责安全 Markdown 渲染。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: 知识详情
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [知识]
+      operationId: updateEntry
+      summary: 修改知识
+      description: 条件写。正文变化时同事务将旧正文写入 entry_revisions 并裁剪到最近 5 条，version 递增；标签最多 20 个。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntryUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [知识]
+      operationId: deleteEntry
+      summary: 删除（软删除）知识
+      description: 软删除不物理删关联行；正常页面与搜索不再展示；硬删除走回收站（先将台账 entryId 置空）。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 已删除，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/entries/{id}/revisions:
+    get:
+      tags: [知识]
+      operationId: listEntryRevisions
+      summary: 正文修订列表
+      description: 最近 5 条，按 savedAt DESC；只读，含 sourceVersion。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 修订列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryRevisionListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/entries/{id}/restore-revision:
+    post:
+      tags: [知识]
+      operationId: restoreEntryRevision
+      summary: 回滚到指定修订
+      description: If-Match + 幂等 + 事务：版本校验 → 当前正文入修订 → 选中正文成为当前 → 裁剪 → version → 审计。可再次回滚恢复当前内容。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RestoreRevisionRequest' }
+      responses:
+        '200':
+          description: 已回滚
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 修订已被裁剪或不属于该条目
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/entries/{id}/usage:
+    post:
+      tags: [知识]
+      operationId: recordEntryUsage
+      summary: 记录一次复制使用事件
+      description: 所有成员可用；仅在复制成功后提交，客户端重试以 Idempotency-Key 去重。服务端无法验证系统剪贴板事实，只去重合法事件。统计与正文 version 分离，不影响正文与项目活动时间。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntryUsageRequest' }
+      responses:
+        '200':
+          description: 统计已更新
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntryUsageEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 幂等键与请求体不一致
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/tasks/{id}/promote:
+    post:
+      tags: [任务]
+      operationId: promoteTask
+      summary: 任务一键沉淀为知识
+      description: 幂等；同一事务内创建 Entry 与 TaskEntry 并推进任务 version，任意失败回滚（无孤立条目）。返回新知识与任务新 version。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PromoteRequest' }
+      responses:
+        '200':
+          description: 已沉淀
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PromoteResultEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 任务已沉淀或幂等键与请求体不一致
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/tags:
+    get:
+      tags: [标签与搜索]
+      operationId: listTags
+      summary: 标签列表
+      description: 同空间规范化名称唯一；返回条目计数，按计数与名称稳定排序。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 标签列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TagListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/search:
+    get:
+      tags: [标签与搜索]
+      operationId: searchWorkspace
+      summary: 空间内搜索
+      description: q 长度 1～100，前后空白移除，% 与 _ 按字面量处理；空查询显示常用/最近而不做全表热度搜索。排序：标题匹配、标签、摘要正文，再按近期使用/次数，最后 updated_at 与 id 稳定排序。结果按实体分组并标注命中字段。限流 429。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/qRequired'
+        - $ref: '#/components/parameters/entityType'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 搜索结果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchResultEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/ledger:
+    get:
+      tags: [台账]
+      operationId: listLedgerRecords
+      summary: 台账列表
+      description: 按 record_date、scene 筛选与排序；只返回本空间记录。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/projectId'
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+        - $ref: '#/components/parameters/month'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 台账列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LedgerRecordListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [台账]
+      operationId: createLedgerRecord
+      summary: 新建台账记录
+      description: 幂等创建；minutes>0、savedMinutes≥0、effect 为 1～5 整数；projectId/entryId 必须同空间有效。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LedgerCreateRequest' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LedgerRecordEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/ledger/{id}:
+    get:
+      tags: [台账]
+      operationId: getLedgerRecord
+      summary: 台账记录详情
+      description: 成员可见；返回 ETag 与 version。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: 台账记录
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LedgerRecordEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [台账]
+      operationId: updateLedgerRecord
+      summary: 修改台账记录
+      description: 条件写；数值与关系重新校验。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LedgerUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LedgerRecordEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [台账]
+      operationId: deleteLedgerRecord
+      summary: 删除（软删除）台账记录
+      description: 软删除，30 天可恢复。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 已删除，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/analytics/monthly:
+    get:
+      tags: [统计]
+      operationId: getMonthlyAnalytics
+      summary: 月度统计
+      description: month 形如 2026-11，按空间时区聚合；byScene 分场景、avgEffect 为 1～5 评分的平均（无记录时 0，不出 NaN）、totalSavedMinutes 为节省分钟合计。不混入其他空间。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/month'
+      responses:
+        '200':
+          description: 月度聚合
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MonthlyAnalyticsEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/analytics/weekly:
+    get:
+      tags: [统计]
+      operationId: getWeeklyAnalytics
+      summary: 近 8 周趋势
+      description: 固定 8 周序列，周一为周起点，缺周补 0；按空间时区计算，不混入其他空间。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+      responses:
+        '200':
+          description: 周聚合
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WeeklyAnalyticsEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/exports:
+    post:
+      tags: [传输]
+      operationId: createExport
+      summary: 创建业务导出作业
+      description: owner/editor 可导出。创建异步 job，worker 在 REPEATABLE READ 快照内读取业务表，先完成文件再开放下载；导出不含密码/会话/邀请。默认只含有效数据，含回收站需显式 includeTrash 并另行权限检查。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportRequest' }
+      responses:
+        '202':
+          description: 作业已受理
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransferJobEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已有运行中的导出作业或幂等键冲突
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/imports/preview:
+    post:
+      tags: [传输]
+      operationId: previewImport
+      summary: 上传文件并生成导入预览
+      description: 仅 owner。文件流式落内部临时卷（≤512MiB、≤25万条），返回 job（state=uploaded/validating）。validating 只写暂存与 job，不改业务表；未知高版本拒绝。预览就绪后经 GET /transfers/{jobId} 获取 ImportPreview。同一文件重复预览产生相同映射，不重复创建。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/ImportPreviewRequest' }
+      responses:
+        '202':
+          description: 已受理，进入校验
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransferJobEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 幂等键冲突或同空间已有进行中的导入
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422':
+          description: 未知 schema 版本、文件结构不合法或条数超限
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/imports/{jobId}/commit:
+    post:
+      tags: [传输]
+      operationId: commitImport
+      summary: 确认导入计划
+      description: 仅 owner。必须回传 planHash，提交时重新验证 planHash 与触及实体的 version；计划过期或版本变化返回 409 PLAN_STALE（需重新预览）。同 job 业务只能提交一次，幂等键外再以 jobId 兜底。过期/取消的 job 不可提交。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/jobId'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportCommitRequest' }
+      responses:
+        '202':
+          description: 已排队执行合并
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransferJobEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: PLAN_STALE、计划已提交/取消/过期或幂等键冲突
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/transfers/{jobId}:
+    get:
+      tags: [传输]
+      operationId: getTransferJob
+      summary: 传输作业状态
+      description: 创建者或 owner 可访问，且必须验证 job 属于该空间（不能猜 id 下载）。导入 job 在 preview_ready 后附带 preview。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/jobId'
+      responses:
+        '200':
+          description: 作业状态
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransferJobEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/transfers/{jobId}/download:
+    get:
+      tags: [传输]
+      operationId: downloadTransfer
+      summary: 下载导出文件
+      description: 仅 succeeded 且未过期的导出 job；走认证 API 流式返回，不暴露内部文件目录与随机文件名。作业未完成或已过期返回 409。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/jobId'
+      responses:
+        '200':
+          description: 文件流
+          headers:
+            Content-Disposition:
+              description: attachment 文件名
+              schema: { type: string }
+            Content-Length:
+              schema: { type: integer }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 作业未完成、已失败或已过期
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/trash:
+    get:
+      tags: [回收站]
+      operationId: listTrash
+      summary: 回收站列表
+      description: 仅 owner/editor；30 天保留期内可恢复。按 type 过滤，按 deletedAt DESC 稳定分页。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/trashTypeQuery'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 回收站列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrashItemListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/trash/{type}/{id}/restore:
+    post:
+      tags: [回收站]
+      operationId: restoreTrashItem
+      summary: 从回收站恢复
+      description: owner。恢复不自动复活已删除父对象，必须确认链接目标仍在同空间且有效；只恢复仍然有效的关系。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/trashType'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: 已恢复
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrashRestoreResultEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 父对象已删除或引用目标失效，需人工确认
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/trash/{type}/{id}:
+    delete:
+      tags: [回收站]
+      operationId: purgeTrashItem
+      summary: 彻底删除回收站对象
+      description: owner。硬删除按外键规则执行：项目先置空子实体 projectId；条目先将台账 entryId 置空并删除修订/使用数据；写审计。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/trashType'
+        - $ref: '#/components/parameters/id'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 已彻底删除，无响应体
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 仍存在受保护引用，拒绝硬删
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/maintenance/clear:
+    post:
+      tags: [运维]
+      operationId: clearWorkspaceData
+      summary: 清空空间业务数据
+      description: owner、二次确认、最近重新认证。事务内清空该空间业务与关联/统计，保留身份与成员，写审计；不删除 users 与其他空间数据。需回传 confirmName（等于空间名）与 backupAcknowledged，并携带空间当前 version 的 If-Match。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaintenanceClearRequest' }
+      responses:
+        '200':
+          description: 已清空
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaintenanceClearResultEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 确认名称不匹配、未确认备份或幂等键冲突
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /me/preferences:
+    get:
+      tags: [偏好]
+      operationId: getMyPreferences
+      summary: 本人偏好
+      description: 只允许本人读取；返回 ETag 与 version。
+      responses:
+        '200':
+          description: 偏好
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [偏好]
+      operationId: updateMyPreferences
+      summary: 修改本人偏好
+      description: 条件写；defaultWorkspaceId 必须验证成员关系。主题变更跨设备同步。
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferenceUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/me/preferences:
+    get:
+      tags: [偏好]
+      operationId: getWorkspacePreferences
+      summary: 我在该空间的偏好
+      description: 备份提醒等按用户空间维护，不能越权修改空间配置。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+      responses:
+        '200':
+          description: 空间内个人偏好
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspacePreferenceEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [偏好]
+      operationId: updateWorkspacePreferences
+      summary: 修改我在该空间的偏好
+      description: 条件写；只影响本人提示状态（如 tipShownAt、lastBusinessExportAt），不改空间配置。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkspacePreferenceUpdateRequest' }
+      responses:
+        '200':
+          description: 已修改
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspacePreferenceEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /workspaces/{workspaceId}/audit-events:
+    get:
+      tags: [审计]
+      operationId: listAuditEvents
+      summary: 空间审计事件（owner）
+      description: 仅 owner；脱敏，不返回 token 或整篇正文；按 at DESC、id 分页。
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+        - $ref: '#/components/parameters/entityType'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: 审计事件列表
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditEventListEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /health/live:
+    get:
+      tags: [运维]
+      operationId: getLiveness
+      summary: 存活探针
+      description: 仅检查进程存活，不访问数据库；公开响应不泄露内部连接信息。
+      security: []
+      responses:
+        '200':
+          description: 进程存活
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthEnvelope' }
+  /health/ready:
+    get:
+      tags: [运维]
+      operationId: getReadiness
+      summary: 就绪探针
+      description: 检查数据库可用性；不可用时 503。响应不含连接串、堆栈或内部路径。
+      security: []
+      responses:
+        '200':
+          description: 就绪
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthEnvelope' }
+        '503':
+          description: 依赖不可用
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthEnvelope' }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sfs_session
+      description: 同源 HttpOnly 会话 cookie，值为随机原始 token（库内只存哈希）；默认 Secure + SameSite=Lax，不启用任意 CORS。登录/改密轮换，退出/改密可吊销。
+  headers:
+    ETag:
+      description: 实体当前版本的强 ETag，值为带引号的十进制 version，例如 "4"；用于 PATCH/DELETE 的 If-Match。
+      schema: { type: string, pattern: '^"[0-9]+"$' }
+  parameters:
+    workspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: 空间 ID。会话用户必须是该空间有效成员，否则 404（避免探测）。
+      schema: { $ref: '#/components/schemas/Uuid' }
+    id:
+      name: id
+      in: path
+      required: true
+      description: 实体 ID，语义由路径决定（项目/任务/知识/日志/台账/会话/邀请）。必须属于路径中的空间。
+      schema: { $ref: '#/components/schemas/Uuid' }
+    userId:
+      name: userId
+      in: path
+      required: true
+      description: 目标用户 ID；成员关系以 (workspaceId,userId) 唯一标识。
+      schema: { $ref: '#/components/schemas/Uuid' }
+    jobId:
+      name: jobId
+      in: path
+      required: true
+      description: 传输作业 ID；访问时校验 job 属于该空间且调用者为创建者或 owner。
+      schema: { $ref: '#/components/schemas/Uuid' }
+    trashType:
+      name: type
+      in: path
+      required: true
+      description: 回收站实体类型。
+      schema: { type: string, enum: [project, task, entry, log, ledger] }
+    limit:
+      name: limit
+      in: query
+      required: false
+      description: 每页条数，默认 20，最大 100；超过上限返回 422，不静默截断。
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    cursor:
+      name: cursor
+      in: query
+      required: false
+      description: 不透明游标，绑定空间、排序与筛选指纹；改变筛选后必须丢弃旧游标。不接受 offset 语义。
+      schema: { type: string, maxLength: 512 }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: 实体当前 version（ETag，形如 "4"）。缺失返回 428，不匹配返回 412；前端不得自行猜版本。
+      schema: { type: string, pattern: '^"?[0-9]+"?$' }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: 幂等键。范围 = 账号 + 空间 + 动作 + key；同 key 不同请求体返回 409；结果默认保留 7 天。
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    IdempotencyKeyOptional:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: 可选幂等键，用于认证/会话等天然幂等或无法版本化的动作；服务端仍按账号+动作去重。
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: 与当前会话绑定的 CSRF 令牌，取自 GET /auth/csrf（登录在登录前获取）；缺失或不匹配返回 403。
+      schema: { type: string, minLength: 16, maxLength: 256 }
+    q:
+      name: q
+      in: query
+      required: false
+      description: 关键词，长度 1～100，前后空白移除；% 与 _ 按字面量处理。空查询返回常用/最近，不做全表热度搜索。
+      schema: { type: string, minLength: 1, maxLength: 100 }
+    qRequired:
+      name: q
+      in: query
+      required: true
+      description: 搜索关键词，长度 1～100，前后空白移除；空串按 400 处理。
+      schema: { type: string, minLength: 1, maxLength: 100 }
+    type:
+      name: type
+      in: query
+      required: false
+      description: 知识类型筛选。
+      schema: { $ref: '#/components/schemas/EntryType' }
+    entityType:
+      name: type
+      in: query
+      required: false
+      description: 搜索或审计的实体类型筛选。
+      schema:
+        type: string
+        enum: [entry, task, project, log, ledger]
+    status:
+      name: status
+      in: query
+      required: false
+      description: 状态筛选。任务 todo|doing|done；知识 draft|verified|archived；成员 active|invited|removed；邀请 pending|accepted|revoked|expired。
+      schema: { type: string, maxLength: 32 }
+    tag:
+      name: tag
+      in: query
+      required: false
+      description: 标签名（按空间规范化名称匹配，≤32 字）。
+      schema: { type: string, minLength: 1, maxLength: 32 }
+    projectId:
+      name: projectId
+      in: query
+      required: false
+      description: 项目 ID 筛选；必须属于路径空间。
+      schema: { $ref: '#/components/schemas/Uuid' }
+    month:
+      name: month
+      in: query
+      required: false
+      description: 月份 YYYY-MM，按空间时区解释；缺省为当前月。
+      schema: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+    from:
+      name: from
+      in: query
+      required: false
+      description: 起始业务日期（含），YYYY-MM-DD。
+      schema: { $ref: '#/components/schemas/BusinessDate' }
+    to:
+      name: to
+      in: query
+      required: false
+      description: 结束业务日期（含），YYYY-MM-DD；必须 ≥ from。
+      schema: { $ref: '#/components/schemas/BusinessDate' }
+    includeDeleted:
+      name: includeDeleted
+      in: query
+      required: false
+      description: 是否包含软删除记录，默认 false；仅 owner/editor 可置 true，普通列表与搜索默认排除。
+      schema: { type: boolean, default: false }
+    trashTypeQuery:
+      name: type
+      in: query
+      required: false
+      description: 回收站实体类型筛选。
+      schema: { type: string, enum: [project, task, entry, log, ledger] }
+  responses:
+    BadRequest:
+      description: 请求或查询语法错误（400），例如非法 JSON、非法日期格式、cursor 损坏。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: 未登录、会话已过期或已被吊销（401）。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: 已确认成员但角色无权，或 CSRF/来源校验失败（403）。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: 对象不存在或不属于可访问空间（404）；不区分「不存在」与「无权」以避免探测。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: 幂等键与请求体不一致、业务冲突或预览计划过期（409）。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    PreconditionFailed:
+      description: If-Match 版本过期（412）；响应体返回可授权查看的 currentVersion，客户端应刷新后重试。
+      headers:
+        ETag: { $ref: '#/components/headers/ETag' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    PayloadTooLarge:
+      description: 请求体、正文或文件超过限制（413）；服务端明确说明上限，不截断内容。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnprocessableEntity:
+      description: 字段或业务校验失败（422）；fieldErrors 给出字段级原因。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    PreconditionRequired:
+      description: 条件写入缺少 If-Match（428）。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    TooManyRequests:
+      description: 登录、搜索或高成本接口限流（429）；按 Retry-After 退避。
+      headers:
+        Retry-After:
+          description: 建议重试等待秒数。
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServiceUnavailable:
+      description: 数据库或服务暂不可用（503）；写入结果未知时用幂等状态查询而不是新 key 重发。
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      description: UUID；服务端生成，离线新建可接受经验证的客户端 UUID。
+    UtcTimestamp:
+      type: string
+      format: date-time
+      description: 服务器 UTC 时间，ISO8601 且带 Z 后缀。
+    BusinessDate:
+      type: string
+      format: date
+      description: 业务日期 YYYY-MM-DD，按空间时区解释，不是 UTC 时刻。
+      pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+    Version:
+      type: integer
+      minimum: 1
+      description: 实体版本，从 1 递增；仅业务内容变化时递增（使用统计与 last_seen 不影响）。
+    EntryType:
+      type: string
+      enum: [note, design, adr, troubleshoot, command]
+      description: 知识类型（五种）。对应中文：note=笔记；design=方案/设计；adr=架构决策记录；troubleshoot=排障；command=命令片段。设计文档未给出英文枚举名，本草案暂定此组取值，需 F03 冻结确认。
+    TaskPriority:
+      type: string
+      enum: [P0, P1, P2]
+      description: 任务优先级。
+    TaskStatus:
+      type: string
+      enum: [todo, doing, done]
+      description: 任务状态；done 与 doneAt 一致，撤销完成清空 doneAt。
+    EntryStatus:
+      type: string
+      enum: [draft, verified, archived]
+      description: 知识状态。draft 可暂缺摘要；verified 必须标题、摘要、正文完整。
+    MemberRole:
+      type: string
+      enum: [owner, editor, viewer]
+      description: 成员角色。最后一位有效 owner 不可移除或降级。
+    ProjectStage:
+      type: string
+      enum: [planning, developing, paused, done]
+      description: 项目阶段（固定枚举）。设计文档未列出具体取值，本草案暂定 planning/developing/paused/done，需 F03 冻结确认。
+    FieldError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field: { type: string, description: '字段路径，例如 title 或 tags[2]' }
+        code: { type: string, description: '稳定字段错误码，例如 REQUIRED、MAX_LENGTH、INVALID_ENUM' }
+        message: { type: string, description: '可直接展示的中文说明' }
+    PageMeta:
+      type: object
+      description: 游标分页元信息。
+      required: [hasMore]
+      properties:
+        nextCursor:
+          type: [string, 'null']
+          description: 下一页游标；hasMore=false 时为 null。
+        hasMore: { type: boolean }
+    SuccessEnvelope:
+      type: object
+      description: 统一成功响应基座；具体 data 类型由各端点 allOf 细化。
+      required: [data, requestId]
+      properties:
+        data: {}
+        meta: { $ref: '#/components/schemas/PageMeta' }
+        requestId: { type: string, description: '请求关联 ID，同时出现在响应头与日志中' }
+    ErrorResponse:
+      type: object
+      description: 统一失败响应；所有 4xx/5xx 都使用该结构（含 403 CSRF、412、428、429、503）。
+      required: [error, requestId]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: 稳定业务错误码，例如 VALIDATION_FAILED、VERSION_CONFLICT、PLAN_STALE、LAST_OWNER、RATE_LIMITED。
+            message: { type: string, description: '可展示的中文说明，不含堆栈、SQL、内部路径或哈希' }
+            fieldErrors:
+              type: array
+              items: { $ref: '#/components/schemas/FieldError' }
+            currentVersion:
+              type: integer
+              minimum: 1
+              description: 仅 412/409 场景：可授权查看的当前 version（用于刷新后重试）。
+            details:
+              type: object
+              additionalProperties: true
+              description: 附加结构化信息（如 planHash、jobId、conflict 字段名），不得含敏感数据。
+        requestId: { type: string }
+    User:
+      type: object
+      description: 账号。绝不返回 password_hash、会话 token、内部路径。账号不通过本 API 编辑资料，故无 version。
+      required: [id, email, displayName, status, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        email: { type: string, format: email, description: '规范化邮箱（只读）' }
+        displayName: { type: string, minLength: 1, maxLength: 50 }
+        status: { type: string, enum: [active, disabled] }
+        passwordChangedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    Workspace:
+      type: object
+      description: 空间。新用户创建个人默认空间；团队共享数据归空间。
+      required: [id, name, timezone, status, version, createdBy, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        timezone: { type: string, description: 'IANA 时区，默认 Asia/Shanghai；仅 Owner 可改且需确认对日期统计的影响' }
+        status: { type: string, enum: [active, archived] }
+        version: { $ref: '#/components/schemas/Version' }
+        createdBy: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    WorkspaceMember:
+      type: object
+      description: 成员关系。数据库以 (workspace_id,user_id) 唯一标识、无独立主键；本草案用 userId 作为 id 便于前端列表 key。
+      required: [id, workspaceId, userId, role, status, joinedAt, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, description: '成员关系无独立主键，取 userId 作为 id' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        userId: { $ref: '#/components/schemas/Uuid' }
+        role: { $ref: '#/components/schemas/MemberRole' }
+        status: { type: string, enum: [active, invited, removed] }
+        joinedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp', description: '记录创建时间（与 joinedAt 同源）' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        user: { $ref: '#/components/schemas/User' }
+    Invitation:
+      type: object
+      description: 空间邀请。token 仅创建响应出现一次，列表不返回。邀请表无 version，撤销以原子标记实现。
+      required: [id, workspaceId, email, role, status, expiresAt, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/MemberRole' }
+        status: { type: string, enum: [pending, accepted, revoked, expired] }
+        expiresAt: { $ref: '#/components/schemas/UtcTimestamp', description: '默认签发后 48 小时' }
+        acceptedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        revokedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        invitedBy: { $ref: '#/components/schemas/Uuid' }
+        oneTimeLink:
+          type: string
+          format: uri
+          writeOnly: true
+          description: 一次性邀请链接，仅在创建响应中返回；列表与详情不返回。
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    Session:
+      type: object
+      description: 会话。不返回 token 或 token 哈希。
+      required: [id, createdAt, lastSeenAt, idleExpiresAt, absoluteExpiresAt, current]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        lastSeenAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        idleExpiresAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        absoluteExpiresAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        current: { type: boolean, description: '是否为当前请求所用会话' }
+        ipAddress: { type: string, description: '脱敏后的来源地址（可省略）' }
+        userAgent: { type: string, maxLength: 300 }
+    MembershipSummary:
+      type: object
+      description: 用于登录/me 的空间摘要。
+      required: [workspaceId, name, role, timezone]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        role: { $ref: '#/components/schemas/MemberRole' }
+        timezone: { type: string }
+    MeProfile:
+      type: object
+      required: [user, memberships]
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        memberships:
+          type: array
+          items: { $ref: '#/components/schemas/MembershipSummary' }
+        preferences: { $ref: '#/components/schemas/Preference' }
+    Project:
+      type: object
+      description: 项目。进度不保存自动冗余真值：progressManual=true 返回 manualProgress，否则按有效任务 done/总数四舍五入，无任务为 0。
+      required: [id, workspaceId, name, stage, progressManual, progress, version, lastActivityAt, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        repo: { type: string, maxLength: 500, description: '仓库地址，仅 http/https' }
+        stack:
+          type: array
+          maxItems: 30
+          items: { type: string, maxLength: 50 }
+        stage: { $ref: '#/components/schemas/ProjectStage' }
+        nextStep: { type: string, maxLength: 300, description: '单行文本' }
+        progressManual: { type: boolean, description: '是否使用手动进度' }
+        manualProgress: { type: [integer, 'null'], minimum: 0, maximum: 100, description: '手动进度 0～100；0 有效' }
+        progress: { type: integer, minimum: 0, maximum: 100, description: '只读计算结果' }
+        color: { type: string, pattern: '^#[0-9a-fA-F]{6}$', description: '白名单色值' }
+        lastActivityAt: { $ref: '#/components/schemas/UtcTimestamp', description: '项目或关联任务/条目/台账内容变化时更新；复制计数与浏览不更新' }
+        version: { $ref: '#/components/schemas/Version' }
+        createdBy: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        originMetadata: { type: object, additionalProperties: true, description: '旧数据来源标识与来源时间；不作为在线授权或冲突依据' }
+    ProjectOverview:
+      type: object
+      description: 项目详情三块聚合，每块带独立分页 meta 与列表入口。
+      required: [project, progress, counts]
+      properties:
+        project: { $ref: '#/components/schemas/Project' }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        counts:
+          type: object
+          properties:
+            tasksTotal: { type: integer }
+            tasksTodo: { type: integer }
+            tasksDoing: { type: integer }
+            tasksDone: { type: integer }
+            entriesTotal: { type: integer }
+            ledgerRecords: { type: integer }
+            ledgerMinutes: { type: integer }
+            savedMinutes: { type: integer }
+        tasks:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Task' } }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+        entries:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Entry' } }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+        ledger:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/LedgerRecord' } }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    Task:
+      type: object
+      description: 任务。done 与 doneAt 由服务端一致维护；链接仅 http/https。
+      required: [id, workspaceId, title, priority, status, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        projectId: { type: [string, 'null'], format: uuid, description: '所属项目；必须同空间有效' }
+        projectName: { type: [string, 'null'], description: '冗余展示名，只读' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        dueDate: { type: [string, 'null'], format: date, description: '截止业务日期 YYYY-MM-DD，按空间时区解释' }
+        aiContext: { type: string, maxLength: 2000 }
+        blocker: { type: string, maxLength: 1000 }
+        doneAt: { type: [string, 'null'], format: date-time, description: '完成时间 UTC；仅 status=done 时非空' }
+        version: { $ref: '#/components/schemas/Version' }
+        createdBy: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    DevelopmentLog:
+      type: object
+      required: [id, workspaceId, logDate, text, authorId, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        logDate: { $ref: '#/components/schemas/BusinessDate' }
+        text: { type: string, minLength: 1, maxLength: 4000 }
+        authorId: { $ref: '#/components/schemas/Uuid' }
+        authorName: { type: string, description: '冗余展示名，只读' }
+        version: { $ref: '#/components/schemas/Version' }
+        createdBy: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    Tag:
+      type: object
+      required: [id, workspaceId, name, nameNormalized, displayName, entryCount, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string, maxLength: 32, description: '展示用名称' }
+        nameNormalized: { type: string, maxLength: 32, description: '同空间唯一' }
+        displayName: { type: string, maxLength: 32 }
+        entryCount: { type: integer, minimum: 0, description: '有效条目计数' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    Entry:
+      type: object
+      description: 知识条目。body ≤ 20480 UTF-8 字节；verified 必须标题、摘要、正文完整；draft 可暂缺摘要。
+      required: [id, workspaceId, type, title, body, status, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        type: { $ref: '#/components/schemas/EntryType' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 300, description: 'draft 可为空；verified 必填' }
+        body: { type: string, description: 'Markdown 原文，octet_length ≤ 20480' }
+        bodyBytes: { type: integer, minimum: 0, description: '只读字节数，便于前端提示 20KB 上限' }
+        lang: { type: string, maxLength: 32 }
+        projectId: { type: [string, 'null'], format: uuid }
+        source: { type: string, maxLength: 32, description: '来源标识，例如 web、offline、import、promote' }
+        status: { $ref: '#/components/schemas/EntryStatus' }
+        rating: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+        tags:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Tag' }
+        usageCount: { type: integer, minimum: 0, description: '复制使用次数，与正文 version 分离' }
+        lastUsedAt: { type: [string, 'null'], format: date-time }
+        version: { $ref: '#/components/schemas/Version' }
+        createdBy: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    EntryRevision:
+      type: object
+      description: 正文修订，仅保留最近 5 条；不可变，createdAt/updatedAt 等于 savedAt。
+      required: [id, workspaceId, entryId, body, savedAt, savedBy, sourceVersion, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        entryId: { $ref: '#/components/schemas/Uuid' }
+        body: { type: string }
+        savedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        savedBy: { $ref: '#/components/schemas/Uuid' }
+        sourceVersion: { type: integer, minimum: 1, description: '被替换正文当时的条目 version' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp', description: '等于 savedAt' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp', description: '等于 savedAt' }
+    EntryUsage:
+      type: object
+      description: 使用统计，与正文 version 分离；复制事件幂等。
+      required: [id, workspaceId, entryId, useCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, description: '每个条目唯一，取 entryId' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        entryId: { $ref: '#/components/schemas/Uuid' }
+        useCount: { type: integer, minimum: 0 }
+        lastUsedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    LedgerRecord:
+      type: object
+      description: AI 使用台账。minutes>0、savedMinutes≥0、effect 为 1～5 整数。
+      required: [id, workspaceId, recordDate, tool, scene, minutes, savedMinutes, effect, version, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        recordDate: { $ref: '#/components/schemas/BusinessDate' }
+        projectId: { type: [string, 'null'], format: uuid }
+        tool: { type: string, minLength: 1, maxLength: 100 }
+        scene: { type: string, minLength: 1, maxLength: 100 }
+        minutes: { type: integer, minimum: 1, maximum: 1440 }
+        savedMinutes: { type: integer, minimum: 0, maximum: 1440 }
+        effect: { type: integer, minimum: 1, maximum: 5, description: '效果评分 1～5 整数' }
+        note: { type: [string, 'null'], maxLength: 4000 }
+        entryId: { type: [string, 'null'], format: uuid, description: '关联知识；必须同空间有效' }
+        version: { $ref: '#/components/schemas/Version' }
+        createdBy: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    TodayDashboard:
+      type: object
+      description: 服务端按空间时区计算的今日聚合。紧急项阈值：逾期>0 天、doing 停滞>3 天、draft 创建>7 天；草稿不计入任务总数。
+      required: [businessDate, timezone, overdue, stalled, staleDraft, counts, generatedAt]
+      properties:
+        businessDate: { $ref: '#/components/schemas/BusinessDate' }
+        timezone: { type: string }
+        overdue:
+          type: array
+          description: 逾期任务（dueDate < businessDate 且未完成）
+          items: { $ref: '#/components/schemas/Task' }
+        stalled:
+          type: array
+          description: doing 停滞超过 3 天的任务
+          items: { $ref: '#/components/schemas/Task' }
+        staleDraft:
+          type: array
+          description: 创建超过 7 天仍为 draft 的知识
+          items: { $ref: '#/components/schemas/Entry' }
+        counts:
+          type: object
+          required: [overdueCount, stalledCount, staleDraftCount, tasksTotal, tasksTodo, tasksDoing, tasksDone]
+          properties:
+            overdueCount: { type: integer, minimum: 0 }
+            stalledCount: { type: integer, minimum: 0 }
+            staleDraftCount: { type: integer, minimum: 0 }
+            tasksTotal: { type: integer, minimum: 0 }
+            tasksTodo: { type: integer, minimum: 0 }
+            tasksDoing: { type: integer, minimum: 0 }
+            tasksDone: { type: integer, minimum: 0 }
+            entriesDraft: { type: integer, minimum: 0 }
+            entriesTotal: { type: integer, minimum: 0 }
+        generatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    MonthlyAnalytics:
+      type: object
+      description: 月度统计。avgEffect 为 1～5 评分均值，无记录时为 0（不出 NaN）；totalSavedMinutes 为节省分钟合计。
+      required: [month, totalRecords, totalMinutes, totalSavedMinutes, avgEffect, byScene, generatedAt]
+      properties:
+        month: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+        totalRecords: { type: integer, minimum: 0 }
+        totalMinutes: { type: integer, minimum: 0 }
+        totalSavedMinutes: { type: integer, minimum: 0 }
+        avgEffect: { type: number, minimum: 0, maximum: 5, description: '无记录时 0，不用 NaN 或误导性折线' }
+        byScene:
+          type: array
+          items:
+            type: object
+            required: [scene, recordCount, minutes, savedMinutes, avgEffect]
+            properties:
+              scene: { type: string }
+              recordCount: { type: integer, minimum: 0 }
+              minutes: { type: integer, minimum: 0 }
+              savedMinutes: { type: integer, minimum: 0 }
+              avgEffect: { type: number, minimum: 0, maximum: 5 }
+        generatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    WeeklyAnalytics:
+      type: object
+      description: 近 8 周趋势，周一为周起点，缺周补 0。
+      required: [from, to, weeks, generatedAt]
+      properties:
+        from: { $ref: '#/components/schemas/BusinessDate' }
+        to: { $ref: '#/components/schemas/BusinessDate' }
+        weeks:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items:
+            type: object
+            required: [weekStart, weekEnd, minutes, savedMinutes, avgEffect, recordCount]
+            properties:
+              weekStart: { $ref: '#/components/schemas/BusinessDate' }
+              weekEnd: { $ref: '#/components/schemas/BusinessDate' }
+              minutes: { type: integer, minimum: 0 }
+              savedMinutes: { type: integer, minimum: 0 }
+              avgEffect: { type: number, minimum: 0, maximum: 5 }
+              recordCount: { type: integer, minimum: 0 }
+        generatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    SearchHit:
+      type: object
+      required: [entityType, id, title, matchedFields, score]
+      properties:
+        entityType: { type: string, enum: [entry, task, project, log, ledger] }
+        id: { $ref: '#/components/schemas/Uuid' }
+        title: { type: string }
+        snippet: { type: string, description: '命中片段，最多 200 字' }
+        matchedFields:
+          type: array
+          description: 命中字段，用于前端高亮
+          items: { type: string, enum: [title, tag, summary, body, other] }
+        score: { type: number, description: '相关性分数，仅用于排序，不作为稳定契约值' }
+        status: { type: [string, 'null'] }
+        type: { type: [string, 'null'] }
+        projectId: { type: [string, 'null'], format: uuid }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    SearchResult:
+      type: object
+      description: 搜索结果，按实体分组并标注命中字段；排序为标题匹配、标签、摘要正文，再近期使用/次数，最后 updated_at 与 id。
+      required: [query, total, groups]
+      properties:
+        query: { type: string }
+        total: { type: integer, minimum: 0 }
+        groups:
+          type: array
+          items:
+            type: object
+            required: [entityType, count, items]
+            properties:
+              entityType: { type: string, enum: [entry, task, project, log, ledger] }
+              count: { type: integer, minimum: 0 }
+              items:
+                type: array
+                items: { $ref: '#/components/schemas/SearchHit' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    ImportCounts:
+      type: object
+      description: 导入预览/结果计数。
+      required: [create, update, skip, conflict, reject]
+      properties:
+        create: { type: integer, minimum: 0 }
+        update: { type: integer, minimum: 0 }
+        skip: { type: integer, minimum: 0 }
+        conflict: { type: integer, minimum: 0 }
+        reject: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+    ImportPreview:
+      type: object
+      description: 导入预览。validating 只写暂存与 job，不改业务表；默认 24 小时内确认。
+      required: [jobId, state, planHash, expiresAt, counts, generatedAt]
+      properties:
+        jobId: { $ref: '#/components/schemas/Uuid' }
+        state: { type: string, enum: [uploaded, validating, preview_ready, queued, running, succeeded, failed, cancelled, expired] }
+        planHash: { type: string, description: '计划指纹，提交时必须回传' }
+        sourceNamespace: { type: string }
+        expiresAt: { $ref: '#/components/schemas/UtcTimestamp', description: '默认预览后 24 小时' }
+        counts: { $ref: '#/components/schemas/ImportCounts' }
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              entityType: { type: string, enum: [project, task, entry, log, ledger] }
+              sourceId: { type: string }
+              entityId: { type: [string, 'null'], format: uuid }
+              serverVersion: { type: integer }
+              sourceUpdatedAt: { type: [string, 'null'], format: date-time }
+              reason: { type: string }
+              defaultResolution: { type: string, enum: [keep_server, apply_import] }
+        rejects:
+          type: array
+          items:
+            type: object
+            properties:
+              entityType: { type: string }
+              sourceId: { type: string }
+              reason: { type: string }
+              fieldErrors:
+                type: array
+                items: { $ref: '#/components/schemas/FieldError' }
+        baseVersions:
+          type: object
+          additionalProperties: { type: integer }
+          description: 触及实体的版本快照，提交时重新校验
+        generatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    TransferJob:
+      type: object
+      description: 传输作业。状态机 uploaded→validating→preview_ready→queued→running→succeeded/failed/cancelled/expired；取消仅在业务提交前生效。
+      required: [id, workspaceId, type, state, counts, attempts, createdAt, updatedAt, expiresAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        type: { type: string, enum: [export, import] }
+        state:
+          type: string
+          enum: [uploaded, validating, preview_ready, queued, running, succeeded, failed, cancelled, expired]
+        counts: { $ref: '#/components/schemas/ImportCounts' }
+        progress:
+          type: object
+          properties:
+            processed: { type: integer, minimum: 0 }
+            total: { type: integer, minimum: 0 }
+        fileHash: { type: string }
+        fileSize: { type: integer, minimum: 0 }
+        planHash: { type: [string, 'null'] }
+        sourceNamespace: { type: [string, 'null'] }
+        baseVersions:
+          type: object
+          additionalProperties: { type: integer }
+        attempts: { type: integer, minimum: 0, description: '最多 3 次可重试基础故障' }
+        errorCode: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
+        expiresAt: { $ref: '#/components/schemas/UtcTimestamp', description: '结果、下载文件与暂存默认 24 小时清理' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        preview: { $ref: '#/components/schemas/ImportPreview' }
+    TrashItem:
+      type: object
+      description: 回收站条目。30 天保留期内可恢复；恢复不自动复活已删除父对象。
+      required: [id, workspaceId, type, entityId, title, deletedAt, expiresAt, version, restorable, createdAt, updatedAt]
+      properties:
+        id: { type: string, description: '取实体 id（同空间同类唯一）' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        type: { type: string, enum: [project, task, entry, log, ledger] }
+        entityId: { $ref: '#/components/schemas/Uuid' }
+        title: { type: string }
+        deletedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        deletedBy: { $ref: '#/components/schemas/Uuid' }
+        expiresAt: { $ref: '#/components/schemas/UtcTimestamp', description: 'deletedAt + 30 天，到期由有审计的后台任务清理' }
+        version: { $ref: '#/components/schemas/Version', description: '删除前最后版本，用于恢复/硬删的 If-Match' }
+        restorable: { type: boolean }
+        blockedReasons:
+          type: array
+          items: { type: string }
+          description: 不可恢复原因，例如父项目已删除
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    AuditEvent:
+      type: object
+      description: 空间审计事件。脱敏，不存密码/token/整篇正文。
+      required: [id, actorId, action, result, at, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        workspaceId: { type: [string, 'null'], format: uuid, description: '账号级安全事件可为空，仅受控运维可查' }
+        actorId: { $ref: '#/components/schemas/Uuid' }
+        actorName: { type: [string, 'null'] }
+        action: { type: string, description: '例如 workspace.clear、member.role_change、entry.restore_revision' }
+        entityType: { type: [string, 'null'] }
+        entityId: { type: [string, 'null'], format: uuid }
+        requestId: { type: [string, 'null'] }
+        result: { type: string, enum: [success, failure] }
+        summary: { type: string, maxLength: 1000, description: '脱敏摘要' }
+        at: { $ref: '#/components/schemas/UtcTimestamp' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp', description: '等于 at' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp', description: '审计事件不可变，等于 at' }
+    Preference:
+      type: object
+      description: 个人偏好，只允许本人维护；defaultWorkspaceId 验证成员关系。
+      required: [id, theme, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, description: '每个用户唯一，取 userId' }
+        theme: { type: string, enum: [light, dark, system] }
+        defaultWorkspaceId: { type: [string, 'null'], format: uuid }
+        version: { $ref: '#/components/schemas/Version' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    WorkspacePreference:
+      type: object
+      description: 空间内个人偏好（备份提醒按用户空间，不把业务导出当灾备）。
+      required: [id, workspaceId, userId, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, description: '取 userId（按空间唯一）' }
+        workspaceId: { $ref: '#/components/schemas/Uuid' }
+        userId: { $ref: '#/components/schemas/Uuid' }
+        tipShownAt: { type: [string, 'null'], format: date-time }
+        lastBusinessExportAt: { type: [string, 'null'], format: date-time }
+        version: { $ref: '#/components/schemas/Version' }
+        createdAt: { $ref: '#/components/schemas/UtcTimestamp' }
+        updatedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    HealthStatus:
+      type: object
+      description: 健康状态；公开响应不泄露连接串、堆栈或内部路径。
+      required: [status, checkedAt]
+      properties:
+        status: { type: string, enum: [ok, degraded, fail] }
+        version: { type: string, description: '构建版本或镜像摘要短值' }
+        uptimeSeconds: { type: integer, minimum: 0 }
+        checks:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status: { type: string, enum: [ok, degraded, fail] }
+              latencyMs: { type: integer, minimum: 0 }
+        checkedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 8, maxLength: 200, writeOnly: true }
+    PasswordChangeRequest:
+      type: object
+      description: 必须提供当前密码；使用恢复令牌时走 /auth/recovery/complete。
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, format: password, writeOnly: true }
+        newPassword: { type: string, format: password, minLength: 8, maxLength: 200, writeOnly: true }
+        revokeOtherSessions: { type: boolean, default: true }
+    RecoveryCompleteRequest:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token: { type: string, format: password, writeOnly: true, description: '服务器 CLI 签发的一次性恢复令牌，默认 30 分钟' }
+        newPassword: { type: string, format: password, minLength: 8, maxLength: 200, writeOnly: true }
+    InvitationAcceptRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, format: password, writeOnly: true, description: '一次性邀请令牌，默认 48 小时' }
+        displayName: { type: string, minLength: 1, maxLength: 50, description: '新用户可选；已有用户忽略' }
+        password: { type: string, format: password, minLength: 8, maxLength: 200, writeOnly: true, description: '新用户必须设置本人密码；已有用户不重设密码' }
+    WorkspaceCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        timezone: { type: string, default: Asia/Shanghai, description: 'IANA 时区' }
+    WorkspaceUpdateRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        timezone: { type: string, description: '仅 Owner；变更需 timezoneChangeAcknowledged=true' }
+        status: { type: string, enum: [active, archived] }
+        timezoneChangeAcknowledged: { type: boolean, description: '确认已知晓对日期统计与今日边界的影响' }
+    WorkspaceMemberUpdateRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { $ref: '#/components/schemas/MemberRole' }
+    InvitationCreateRequest:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/MemberRole' }
+        expiresInHours: { type: integer, minimum: 1, maximum: 168, default: 48 }
+    ProjectCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        repo: { type: string, maxLength: 500, description: '仅 http/https' }
+        stack:
+          type: array
+          maxItems: 30
+          items: { type: string, maxLength: 50 }
+        stage: { $ref: '#/components/schemas/ProjectStage' }
+        nextStep: { type: string, maxLength: 300 }
+        progressManual: { type: boolean, default: false }
+        manualProgress: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+        color: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+    ProjectUpdateRequest:
+      type: object
+      description: 全部字段可选；仅业务内容变化时递增 version。
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        repo: { type: string, maxLength: 500 }
+        stack:
+          type: array
+          maxItems: 30
+          items: { type: string, maxLength: 50 }
+        stage: { $ref: '#/components/schemas/ProjectStage' }
+        nextStep: { type: string, maxLength: 300 }
+        progressManual: { type: boolean }
+        manualProgress: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+        color: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+    TaskCreateRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        projectId: { type: [string, 'null'], format: uuid }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        status: { type: string, enum: [todo, doing], description: '新建仅允许 todo/doing；完成走 PATCH' }
+        dueDate: { type: [string, 'null'], format: date }
+        aiContext: { type: string, maxLength: 2000 }
+        blocker: { type: string, maxLength: 1000 }
+    TaskUpdateRequest:
+      type: object
+      description: 全部字段可选。doneAt 不接受客户端提交，由 status 与 done 一致性规则维护。
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        projectId: { type: [string, 'null'], format: uuid }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        dueDate: { type: [string, 'null'], format: date }
+        aiContext: { type: string, maxLength: 2000 }
+        blocker: { type: string, maxLength: 1000 }
+    PostponeRequest:
+      type: object
+      description: dryRun=true 只返回范围与候选；确认后提交 taskIds 执行。
+      required: [dryRun]
+      properties:
+        dryRun: { type: boolean, description: 'true 仅预览，不写业务数据' }
+        taskIds:
+          type: array
+          items: { $ref: '#/components/schemas/Uuid' }
+          description: 确认执行时的候选集合；必须与预览结果一致
+        targetDate: { type: [string, 'null'], format: date, description: '顺延目标业务日，缺省为空间业务今日' }
+    PostponeResult:
+      type: object
+      required: [dryRun, fromDate, movedCount]
+      properties:
+        dryRun: { type: boolean }
+        fromDate: { $ref: '#/components/schemas/BusinessDate' }
+        targetDate: { $ref: '#/components/schemas/BusinessDate' }
+        movedCount: { type: integer, minimum: 0 }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/Task' }
+    LogCreateRequest:
+      type: object
+      required: [text]
+      properties:
+        logDate: { $ref: '#/components/schemas/BusinessDate', description: '缺省为空间业务今日' }
+        text: { type: string, minLength: 1, maxLength: 4000 }
+    LogUpdateRequest:
+      type: object
+      properties:
+        logDate: { $ref: '#/components/schemas/BusinessDate' }
+        text: { type: string, minLength: 1, maxLength: 4000 }
+    EntryCreateRequest:
+      type: object
+      required: [type, title, body]
+      properties:
+        type: { $ref: '#/components/schemas/EntryType' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 300, description: 'status=draft 可为空；verified 必填' }
+        body: { type: string, description: 'Markdown 原文，octet_length ≤ 20480' }
+        lang: { type: string, maxLength: 32 }
+        projectId: { type: [string, 'null'], format: uuid }
+        source: { type: string, maxLength: 32, default: web }
+        status: { type: string, enum: [draft, verified], default: draft }
+        tagIds:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Uuid' }
+    EntryUpdateRequest:
+      type: object
+      properties:
+        type: { $ref: '#/components/schemas/EntryType' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 300 }
+        body: { type: string, description: '变化时旧正文入修订并裁剪 5 版' }
+        lang: { type: string, maxLength: 32 }
+        projectId: { type: [string, 'null'], format: uuid }
+        status: { $ref: '#/components/schemas/EntryStatus' }
+        rating: { type: [integer, 'null'], minimum: 1, maximum: 5 }
+        tagIds:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Uuid' }
+    RestoreRevisionRequest:
+      type: object
+      required: [revisionId]
+      properties:
+        revisionId: { $ref: '#/components/schemas/Uuid' }
+    EntryUsageRequest:
+      type: object
+      required: [event]
+      properties:
+        event: { type: string, enum: [copy], description: '仅复制成功事件；失败不提交' }
+        occurredAt: { $ref: '#/components/schemas/UtcTimestamp', description: '可选客户端时间，仅用于统计排查，不作为权威时间' }
+    PromoteRequest:
+      type: object
+      description: 任务沉淀为知识时可有选择地覆盖预填内容；缺省按任务字段预填。
+      properties:
+        type: { $ref: '#/components/schemas/EntryType' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 300 }
+        body: { type: string }
+        projectId: { type: [string, 'null'], format: uuid }
+        tagIds:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Uuid' }
+    PromoteResult:
+      type: object
+      required: [entry, task]
+      properties:
+        entry: { $ref: '#/components/schemas/Entry' }
+        task: { $ref: '#/components/schemas/Task' }
+    LedgerCreateRequest:
+      type: object
+      required: [recordDate, tool, scene, minutes, savedMinutes, effect]
+      properties:
+        recordDate: { $ref: '#/components/schemas/BusinessDate' }
+        projectId: { type: [string, 'null'], format: uuid }
+        tool: { type: string, minLength: 1, maxLength: 100 }
+        scene: { type: string, minLength: 1, maxLength: 100 }
+        minutes: { type: integer, minimum: 1, maximum: 1440 }
+        savedMinutes: { type: integer, minimum: 0, maximum: 1440 }
+        effect: { type: integer, minimum: 1, maximum: 5 }
+        note: { type: [string, 'null'], maxLength: 4000 }
+        entryId: { type: [string, 'null'], format: uuid }
+    LedgerUpdateRequest:
+      type: object
+      properties:
+        recordDate: { $ref: '#/components/schemas/BusinessDate' }
+        projectId: { type: [string, 'null'], format: uuid }
+        tool: { type: string, minLength: 1, maxLength: 100 }
+        scene: { type: string, minLength: 1, maxLength: 100 }
+        minutes: { type: integer, minimum: 1, maximum: 1440 }
+        savedMinutes: { type: integer, minimum: 0, maximum: 1440 }
+        effect: { type: integer, minimum: 1, maximum: 5 }
+        note: { type: [string, 'null'], maxLength: 4000 }
+        entryId: { type: [string, 'null'], format: uuid }
+    ExportRequest:
+      type: object
+      required: [format]
+      properties:
+        format: { type: string, enum: [json, markdown] }
+        schemaVersion: { type: integer, enum: [2], description: '新导出固定 schemaVersion=2' }
+        includeTrash: { type: boolean, default: false, description: '是否含回收站；需显式选择并另做权限检查' }
+    ImportPreviewRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 业务 JSON 文件（schema=1 或 schemaVersion=2），≤512MiB、≤25 万条实体
+        sourceNamespace: { type: string, maxLength: 100, description: '旧库来源命名空间；同一旧库后续导入必须复用' }
+        schemaVersion: { type: integer, enum: [1, 2], description: '未知高版本一律拒绝（422）' }
+    ImportCommitRequest:
+      type: object
+      required: [planHash, confirm]
+      properties:
+        planHash: { type: string, description: '预览返回的计划指纹；不匹配返回 409 PLAN_STALE' }
+        confirm: { type: boolean, enum: [true], description: '必须为 true 才执行合并' }
+        sourceNamespace: { type: string }
+        decisions:
+          type: array
+          description: 冲突决策；未给出的冲突按默认保留服务器。
+          items:
+            type: object
+            required: [entityType, sourceId, action]
+            properties:
+              entityType: { type: string, enum: [project, task, entry, log, ledger] }
+              sourceId: { type: string }
+              action: { type: string, enum: [apply_import, keep_server, skip] }
+        note: { type: string, maxLength: 500 }
+    TrashRestoreResult:
+      type: object
+      required: [type, id, restored]
+      properties:
+        type: { type: string, enum: [project, task, entry, log, ledger] }
+        id: { $ref: '#/components/schemas/Uuid' }
+        restored: { type: boolean }
+        warnings:
+          type: array
+          items: { type: string }
+          description: 例如关联项目已删除，相关关系未恢复
+    MaintenanceClearRequest:
+      type: object
+      required: [confirmName, backupAcknowledged, password]
+      properties:
+        confirmName: { type: string, description: '必须与空间名完全一致，用于二次确认' }
+        backupAcknowledged: { type: boolean, description: '必须为 true；业务导出不等于灾备' }
+        password: { type: string, format: password, writeOnly: true, description: '最近重新认证' }
+    MaintenanceClearResult:
+      type: object
+      required: [cleared, completedAt]
+      properties:
+        cleared:
+          type: object
+          properties:
+            projects: { type: integer, minimum: 0 }
+            tasks: { type: integer, minimum: 0 }
+            entries: { type: integer, minimum: 0 }
+            logs: { type: integer, minimum: 0 }
+            ledgerRecords: { type: integer, minimum: 0 }
+        auditEventId: { $ref: '#/components/schemas/Uuid' }
+        completedAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    PreferenceUpdateRequest:
+      type: object
+      properties:
+        theme: { type: string, enum: [light, dark, system] }
+        defaultWorkspaceId: { type: [string, 'null'], format: uuid }
+    WorkspacePreferenceUpdateRequest:
+      type: object
+      properties:
+        tipShownAt: { type: [string, 'null'], format: date-time }
+        lastBusinessExportAt: { type: [string, 'null'], format: date-time }
+    CsrfData:
+      type: object
+      required: [csrfToken, expiresAt]
+      properties:
+        csrfToken: { type: string, description: '写请求放入 X-CSRF-Token' }
+        expiresAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    LoginData:
+      type: object
+      required: [user, memberships, csrfToken]
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        memberships:
+          type: array
+          items: { $ref: '#/components/schemas/MembershipSummary' }
+        csrfToken: { type: string, description: '登录轮换会话后必须使用新令牌' }
+        sessionExpiresAt: { $ref: '#/components/schemas/UtcTimestamp' }
+    SessionRevocationData:
+      type: object
+      required: [sessionsRevoked]
+      properties:
+        sessionsRevoked: { type: integer, minimum: 0 }
+    CsrfEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/CsrfData' }
+    LoginEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/LoginData' }
+    MeEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MeProfile' }
+    SessionListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Session' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    SessionRevocationEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/SessionRevocationData' }
+    WorkspaceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Workspace' }
+    WorkspaceListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Workspace' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    WorkspaceMemberEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/WorkspaceMember' }
+    WorkspaceMemberListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/WorkspaceMember' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    InvitationEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Invitation' }
+    InvitationListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Invitation' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    TodayDashboardEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TodayDashboard' }
+    ProjectEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Project' }
+    ProjectListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Project' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    ProjectOverviewEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ProjectOverview' }
+    TaskEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Task' }
+    TaskListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Task' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    PostponeResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/PostponeResult' }
+    DevelopmentLogEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/DevelopmentLog' }
+    DevelopmentLogListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/DevelopmentLog' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    EntryEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Entry' }
+    EntryListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Entry' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    EntryRevisionListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/EntryRevision' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    EntryUsageEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/EntryUsage' }
+    PromoteResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/PromoteResult' }
+    TagListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Tag' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    SearchResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/SearchResult' }
+    LedgerRecordEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/LedgerRecord' }
+    LedgerRecordListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/LedgerRecord' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    MonthlyAnalyticsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MonthlyAnalytics' }
+    WeeklyAnalyticsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/WeeklyAnalytics' }
+    TransferJobEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TransferJob' }
+    TrashItemListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TrashItem' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    TrashRestoreResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TrashRestoreResult' }
+    MaintenanceClearResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MaintenanceClearResult' }
+    PreferenceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Preference' }
+    WorkspacePreferenceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/WorkspacePreference' }
+    AuditEventListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/AuditEvent' }
+            meta: { $ref: '#/components/schemas/PageMeta' }
+    HealthEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/HealthStatus' }

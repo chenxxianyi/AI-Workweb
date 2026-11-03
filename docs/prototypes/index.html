@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 编程工作台 · 低保真原型（F02）</title>
+<style>
+  /* 低保真线框：仅用灰阶 + 一个强调色，用于走查结构、入口与状态，不代表最终视觉。
+     正式设计令牌在 F03 冻结，实现于 apps/web/src/styles/tokens.css。 */
+  :root{
+    --ink:#0f172a; --muted:#64748b; --line:#cbd5e1; --fill:#f1f5f9; --fill-2:#e2e8f0;
+    --accent:#0f766e; --accent-soft:#ccfbf1; --warn:#b45309; --danger:#b91c1c; --bg:#f8fafc;
+    --r:8px; --sp:8px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font:14px/1.6 system-ui,"Segoe UI","Microsoft YaHei","Noto Sans SC",sans-serif;color:var(--ink);background:var(--bg)}
+  a{color:var(--accent);text-decoration:none}
+  .mono{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+
+  /* ---------- 外壳 ---------- */
+  .shell{display:grid;grid-template-columns:216px 1fr;grid-template-rows:52px 1fr;min-height:100vh;
+         grid-template-areas:"top top" "side main"}
+  .topbar{grid-area:top;display:flex;align-items:center;gap:12px;padding:0 16px;background:#fff;border-bottom:1px solid var(--line)}
+  .brand{font-weight:700;letter-spacing:.02em}
+  .ws-switch{border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:var(--fill);font-size:12px}
+  .searchbtn{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+             border-radius:var(--r);padding:6px 10px;color:var(--muted);background:#fff;font-size:12px;cursor:pointer}
+  .avatar{width:28px;height:28px;border-radius:50%;background:var(--fill-2);display:grid;place-items:center;font-size:12px}
+  .sidenav{grid-area:side;background:#fff;border-right:1px solid var(--line);padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+  .sidenav a{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);color:var(--ink);font-size:13px}
+  .sidenav a[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .sidenav .grp{font-size:11px;color:var(--muted);padding:12px 10px 4px;letter-spacing:.08em}
+  .main{grid-area:main;padding:20px 24px 72px;max-width:1180px;min-width:0}
+  .bottombar{display:none}
+
+  /* ---------- 线框元件 ---------- */
+  .screen{display:none}
+  .screen.active{display:block}
+  .h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 16px;font-size:13px}
+  .card{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:12px}
+  .card.dash{border-style:dashed;background:#fff}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px}
+  .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .bar{height:10px;border-radius:4px;background:var(--fill-2)}
+  .bar.w40{width:40%}.bar.w60{width:60%}.bar.w80{width:80%}.bar.w20{width:20%}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;
+        padding:2px 10px;font-size:12px;color:var(--muted);background:#fff}
+  .chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .btn{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:6px 12px;font-size:13px;cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.ghost{border-style:dashed}
+  .input{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;background:#fff;color:var(--muted);font-size:13px}
+  .pin{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--danger)}
+  .pin.warn{background:var(--warn)}
+  .badge{font-size:11px;border-radius:4px;padding:1px 6px;background:var(--fill);color:var(--muted);border:1px solid var(--line)}
+  .badge.p0{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+  .badge.p1{background:#ffedd5;border-color:#fed7aa;color:#9a3412}
+  .badge.p2{background:var(--fill);color:var(--muted)}
+  .notice{border:1px dashed var(--accent);background:var(--accent-soft);border-radius:var(--r);padding:8px 12px;font-size:12px;color:#115e59}
+  .notice.warn{border-color:var(--warn);background:#fef3c7;color:#92400e}
+  .notice.danger{border-color:var(--danger);background:#fee2e2;color:#991b1b}
+  .annot{margin-top:10px;border-left:3px solid var(--accent);padding:2px 0 2px 10px;color:var(--muted);font-size:12px}
+  .annot b{color:var(--ink)}
+  .flow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .flow .s{border:1px solid var(--line);border-radius:var(--r);padding:4px 8px;background:#fff;color:var(--ink)}
+  .fig{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:10px}
+  .fig .axis{height:120px;display:flex;align-items:flex-end;gap:10px;border-bottom:1px solid var(--line);padding-bottom:2px}
+  .fig .axis i{display:block;flex:1;background:var(--accent-soft);border:1px solid var(--line);border-bottom:none;border-radius:3px 3px 0 0}
+  .split{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+  .item .grow{flex:1;min-width:0}
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .tabs span{padding:6px 10px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent}
+  .tabs span.on{color:var(--accent);border-color:var(--accent);font-weight:600}
+  .phone{width:375px;border:8px solid #111827;border-radius:22px;padding:0;background:#fff;overflow:hidden}
+  .phone .phbar{height:28px;background:#111827;display:flex;justify-content:center;align-items:center}
+  .phone .phbar i{width:56px;height:5px;border-radius:3px;background:#4b5563;display:block}
+  .phone .phbody{padding:10px;display:flex;flex-direction:column;gap:8px}
+  .phone .phtab{display:flex;border-top:1px solid var(--line);margin-top:6px}
+  .phone .phtab span{flex:1;text-align:center;font-size:10px;padding:8px 0;color:var(--muted)}
+  .phone .phtab span.on{color:var(--accent);font-weight:600}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 0 14px}
+  .kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11px;background:#fff}
+  @media (max-width:820px){
+    .shell{grid-template-columns:1fr;grid-template-rows:52px 1fr 56px;grid-template-areas:"top" "main" "bottom"}
+    .sidenav{display:none}
+    .bottombar{grid-area:bottom;display:flex;background:#fff;border-top:1px solid var(--line)}
+    .bottombar a{flex:1;text-align:center;font-size:11px;padding:8px 0;color:var(--muted)}
+    .bottombar a[aria-current="page"]{color:var(--accent);font-weight:600}
+    .main{padding:14px}
+    .grid2,.grid3,.split{grid-template-columns:1fr}
+    /* 375px：顶部不再换行，搜索简化为图标+文字，空间名截断 */
+    .topbar{padding:0 10px;gap:8px;overflow:hidden;flex-wrap:nowrap}
+    .brand{font-size:12px;white-space:nowrap}
+    .ws-switch{max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto}
+    .searchbtn{margin-left:auto;padding:6px 8px;white-space:nowrap}
+    .searchbtn .kbd{display:none}
+    .avatar{flex:0 0 auto}
+    .phone{width:100%;max-width:none}
+    .phone .phbody{padding:8px}
+    .legend{display:none}
+    .fig .axis{height:90px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <span class="brand">AI 编程工作台</span>
+    <span class="ws-switch">空间：个人工作台 ▾</span>
+    <button class="searchbtn" data-go="search">搜索 <span class="kbd">Ctrl</span><span class="kbd">K</span></button>
+    <span class="badge" title="保存状态">已同步</span>
+    <span class="avatar">我</span>
+  </header>
+
+  <nav class="sidenav" aria-label="主导航">
+    <div class="grp">聚焦</div>
+    <a href="#today" data-nav="today">今日聚焦</a>
+    <a href="#projects" data-nav="projects">项目雷达</a>
+    <a href="#kb" data-nav="kb">知识库</a>
+    <a href="#ledger" data-nav="ledger">AI 台账</a>
+    <div class="grp">管理</div>
+    <a href="#settings" data-nav="settings">设置</a>
+    <a href="#states" data-nav="states">状态与异常</a>
+    <div class="grp">原型说明</div>
+    <a href="#login" data-nav="login">登录 / 邀请</a>
+    <a href="#project-detail" data-nav="project-detail">项目详情</a>
+    <a href="#kb-detail" data-nav="kb-detail">知识详情</a>
+    <a href="#search" data-nav="search">全局搜索</a>
+  </nav>
+
+  <main class="main">
+    <p class="legend">
+      <span>线框灰＝结构占位</span><span>青色＝可交互主路径</span><span>虚线＝待实现／空态</span>
+      <span>红／橙点＝紧急项</span><span>每屏下方“走查要点”为 F02 验收依据</span>
+    </p>
+
+    <!-- ============ 登录 / 邀请 ============ -->
+    <section class="screen" id="login">
+      <h1 class="h1">登录与邀请接受</h1>
+      <p class="sub">公开注册关闭；无邮件服务，邀请链接由 Owner 手工传递；密码恢复走服务器管理命令。</p>
+      <div class="split">
+        <div class="card">
+          <div class="col">
+            <div class="bar w40"></div>
+            <label class="annot" for="login-email">邮箱或用户名</label>
+            <div class="input" id="login-email">you@example.local</div>
+            <label class="annot" for="login-pass">密码</label>
+            <div class="input" id="login-pass">••••••••••</div>
+            <div class="row"><button class="btn primary">登录</button><button class="btn ghost">需要帮助？</button></div>
+            <p class="annot">登录失败统一提示“账号或密码不正确”，不区分账号是否存在；连续失败触发限流提示。</p>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card dash">
+            <b>邀请接受</b>
+            <p class="annot">链接含一次性令牌 → 校验有效性与空间 → 设置密码 → 进入该空间。令牌过期或已用显示明确失败态，并提供“请 Owner 重新生成”。</p>
+          </div>
+          <div class="card dash">
+            <b>会话过期</b>
+            <p class="annot">任意页面遇 401：保留当前输入，弹出“登录已过期”，登录后回到原路由与筛选。</p>
+          </div>
+          <div class="card dash">
+            <b>无权限</b>
+            <p class="annot">Viewer 打开写操作入口时按钮禁用并说明原因，不隐藏入口本身；直接调接口返回 403 并提示联系人。</p>
+          </div>
+        </div>
+      </div>
+      <p class="annot"><b>走查要点：</b>登录、邀请、过期、无权限四种入口均有明确出口，不出现死页。</p>
+    </section>
+
+    <!-- ============ 今日聚焦 ============ -->
+    <section class="screen" id="today">
+      <h1 class="h1">今日聚焦</h1>
+      <p class="sub">业务日＝空间时区（Asia/Shanghai）；紧急项置顶；已完成的任务不再进入紧急区。</p>
+
+      <div class="notice">今日 2026-11-03 · 紧急 4 项 · 昨日未完成 2 项（可批量顺延）</div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <b>紧急区</b><span class="badge p0">逾期 1</span><span class="badge p1">停滞 2</span><span class="badge">草稿超期 1</span>
+        </div>
+        <div class="list" style="margin-top:10px">
+          <div class="item"><span class="pin"></span><div class="grow"><div class="bar w60"></div><div class="bar w20" style="margin-top:6px"></div></div><span class="badge p0">P0</span><button class="btn">完成</button><button class="btn">改期</button></div>
+          <div class="item"><span class="pin warn"></span><div class="grow"><div class="bar w80"></div></div><span class="badge p1">P1</span><button class="btn">完成</button><button class="btn">改期</button></div>
+          <div class="item"><span class="pin warn"></span><div class="grow"><div class="bar w40"></div></div><span class="badge p1">P1</span><button class="btn">完成</button><button class="btn">改期</button></div>
+        </div>
+        <p class="annot">完成即消失；撤销入口在“已隐藏 1 项”内，保留 5 秒撤销条；改期需选日期，跨月显示月份。</p>
+      </div>
+
+      <div class="grid2" style="margin-top:12px">
+        <div class="card">
+          <div class="tabs"><span class="on">今日任务</span><span>昨天未完成</span><span>全部</span></div>
+          <div class="list">
+            <div class="item"><div class="grow"><div class="bar w60"></div></div><span class="badge p2">P2</span><button class="btn ghost">+ 下一步</button></div>
+            <div class="item"><div class="grow"><div class="bar w40"></div></div><span class="badge p2">P2</span></div>
+            <div class="item"><div class="grow"><div class="bar w80"></div></div><span class="badge p2">P2</span></div>
+          </div>
+          <p class="annot">批量顺延：先预览“将顺延 2 项到 2026-11-03”，确认后事务提交；更早逾期与已完成不参与。</p>
+        </div>
+        <div class="card">
+          <b>开发日志</b>
+          <div class="row">
+            <div class="input" style="flex:1">今天解决了什么？<span class="kbd">Enter</span> 保存 · <span class="kbd">Shift</span>+<span class="kbd">Enter</span> 换行</div>
+            <button class="btn primary">保存</button>
+          </div>
+          <div class="list" style="margin-top:10px">
+            <div class="item"><div class="grow"><div class="bar w80"></div><div class="bar w40" style="margin-top:6px"></div></div><span class="badge">10:32</span></div>
+            <div class="item"><div class="grow"><div class="bar w60"></div></div><span class="badge">09:05</span></div>
+          </div>
+          <p class="annot">中文输入法组合期间按 Enter 不提交（isComposing）；重试复用同一幂等键。</p>
+        </div>
+      </div>
+      <p class="annot"><b>走查要点：</b>紧急项→完成→消失→撤销；今日/昨天分组；日志 Enter 保存；顺延预览；375px 下为单列。</p>
+    </section>
+
+    <!-- ============ 项目雷达 ============ -->
+    <section class="screen" id="projects">
+      <h1 class="h1">项目雷达</h1>
+      <p class="sub">每张卡只展示一个“下一步”；进度可自动（按任务）或手动（0% 有效）。</p>
+      <div class="row" style="margin-bottom:12px">
+        <span class="chip on">进行中 6</span><span class="chip">7 天无活动 2</span><span class="chip">已归档</span><button class="btn primary" style="margin-left:auto">+ 新建项目</button>
+      </div>
+      <div class="grid3">
+        <div class="card">
+          <div class="row" style="justify-content:space-between"><b>工作台全栈版</b><span class="badge p1">7 天无活动</span></div>
+          <p class="annot">阶段：开发中 · 栈：React / NestJS / PostgreSQL</p>
+          <div class="bar w80" style="margin:8px 0"></div><span class="badge">进度 62%（自动）</span>
+          <p class="annot" style="margin-bottom:0">下一步：完成知识库编辑与修订（F21）</p>
+        </div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between"><b>旧数据迁移</b><span class="badge">正常</span></div>
+          <p class="annot">阶段：验证 · 栈：Node / PostgreSQL</p>
+          <div class="bar w20" style="margin:8px 0"></div><span class="badge">进度 0%（手动）</span>
+          <p class="annot" style="margin-bottom:0">下一步：整理 schema1 样本</p>
+        </div>
+        <div class="card dash">
+          <div class="col" style="align-items:center;color:var(--muted)">
+            <div class="bar w40"></div><p class="annot">还没有更多项目</p><button class="btn ghost">新建项目</button>
+          </div>
+        </div>
+      </div>
+      <p class="annot"><b>走查要点：</b>卡片无活动 ≥7 天出现提醒；手动 0% 不被覆盖；“下一步”为单行文本；空态引导新建。</p>
+    </section>
+
+    <!-- ============ 项目详情 ============ -->
+    <section class="screen" id="project-detail">
+      <div class="flow" style="margin-bottom:10px"><span class="s">项目雷达</span>→<span class="s">项目详情</span>→<span class="s">任务</span>/<span class="s">知识</span>/<span class="s">台账</span></div>
+      <h1 class="h1">工作台全栈版</h1>
+      <p class="sub">阶段：开发中 · 栈：React 19 / NestJS / PostgreSQL 17 · 进度 62%（自动，12/19 任务完成）</p>
+      <div class="card"><b>下一步</b><div class="row" style="margin-top:6px"><div class="input" style="flex:1">完成知识库编辑与修订（F21）</div><button class="btn">保存</button></div>
+        <p class="annot">单行文本，最多 200 字；保存走 If-Match，冲突时提示“已被他人修改”。</p>
+      </div>
+      <div class="grid3" style="margin-top:12px">
+        <div class="card"><b>关联任务</b><div class="list" style="margin-top:8px">
+          <div class="item"><div class="grow"><div class="bar w60"></div></div><span class="badge">进行中</span></div>
+          <div class="item"><div class="grow"><div class="bar w40"></div></div><span class="badge">待办</span></div>
+        </div><button class="btn ghost" style="margin-top:8px">+ 新建任务（预选本项目）</button></div>
+        <div class="card"><b>关联知识</b><div class="list" style="margin-top:8px">
+          <div class="item"><div class="grow"><div class="bar w80"></div></div><span class="badge">ADR</span></div>
+        </div><button class="btn ghost" style="margin-top:8px">+ 沉淀知识</button></div>
+        <div class="card"><b>AI 台账</b><div class="list" style="margin-top:8px">
+          <div class="item"><div class="grow"><div class="bar w60"></div></div><span class="badge">30 分钟</span></div>
+          <div class="item"><div class="grow"><div class="bar w40"></div></div><span class="badge">效果 4</span></div>
+        </div><button class="btn ghost" style="margin-top:8px">+ 记录使用</button></div>
+      </div>
+      <p class="annot"><b>走查要点：</b>三块均可翻页且只显示本项目数据；从任务“沉淀知识”返回本项目；新建任务/知识自动带入项目。</p>
+    </section>
+
+    <!-- ============ 知识库 ============ -->
+    <section class="screen" id="kb">
+      <h1 class="h1">知识库</h1>
+      <p class="sub">五类型（笔记/方案/ADR/排错/命令）、三状态（draft/verified/archived）；中文两字词可命中。</p>
+      <div class="row" style="margin-bottom:10px">
+        <div class="input" style="flex:1;max-width:360px">搜索标题 / 标签 / 摘要 / 正文</div>
+        <span class="chip on">全部类型</span><span class="chip">ADR</span><span class="chip">排错</span>
+        <span class="chip on">verified</span><span class="chip">draft</span>
+        <button class="btn primary" style="margin-left:auto">+ 快速捕获 <span class="kbd">N</span></button>
+      </div>
+      <div class="split">
+        <div class="list">
+          <div class="item"><div class="grow"><b>断连重试的幂等设计</b><div class="annot">标签：幂等 · 离线 · 摘要：同一幂等键重试不重复新建…</div></div><span class="badge">ADR</span><span class="badge">verified</span></div>
+          <div class="item"><div class="grow"><b>PostgreSQL 时区与业务日</b><div class="annot">标签：日期 · 摘要：DATE 类型 + 空间时区…</div></div><span class="badge">方案</span><span class="badge">verified</span></div>
+          <div class="item"><div class="grow"><b>未命名草稿</b><div class="annot">待补摘要 · 创建 9 天</div></div><span class="badge">draft</span><span class="badge p1">超期</span></div>
+        </div>
+        <div class="col">
+          <div class="card dash"><b>整理入口</b><p class="annot">草稿超期 1 · 30 天未访问 3 · 常用 Top5</p></div>
+          <div class="card dash"><b>空态</b><p class="annot">“还没有知识条目” + 快速捕获按钮；筛选无结果与真空态文案不同。</p></div>
+        </div>
+      </div>
+      <p class="annot"><b>走查要点：</b>类型/状态/标签组合筛选写入 URL 可分享；复制按钮独立于打开详情；草稿超期有标记但不自动删除。</p>
+    </section>
+
+    <!-- ============ 知识详情 / 编辑 ============ -->
+    <section class="screen" id="kb-detail">
+      <div class="flow" style="margin-bottom:10px"><span class="s">知识库</span>→<span class="s">条目</span>→<span class="s">任务沉淀</span>→<span class="s">复制</span>→<span class="s">台账</span></div>
+      <div class="split">
+        <div class="card">
+          <div class="row" style="justify-content:space-between"><b>断连重试的幂等设计</b><span class="badge">ADR</span><span class="badge">verified</span></div>
+          <div class="tabs" style="margin-top:10px"><span class="on">编辑</span><span>预览</span><span>修订（5）</span></div>
+          <div class="col">
+            <div class="input">摘要（verified 必填，≤200 字）</div>
+            <div class="input" style="min-height:150px"># 结论<br>同一 Idempotency-Key 重试只创建一次。<br>```ts<br>await submit(key) // 重试复用 key<br>```</div>
+            <div class="row"><button class="btn primary">保存</button><button class="btn">复制正文</button><button class="btn">复制为 Markdown</button><button class="btn ghost" style="margin-left:auto">归档</button></div>
+            <p class="annot">正文上限 20480 字节；保存前显示“剩余 19,860 字节”；复制失败时明确提示并可手动选择全文。</p>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card"><b>修订</b><div class="list" style="margin-top:8px">
+            <div class="item"><div class="grow"><div class="bar w60"></div></div><button class="btn">对比</button></div>
+            <div class="item"><div class="grow"><div class="bar w80"></div></div><button class="btn">对比</button></div>
+          </div><p class="annot">最多保留最近 5 版；回滚前先保存当前正文；对比为左右分栏，确认后才写库。</p></div>
+          <div class="card dash"><b>关联</b><p class="annot">任务：F24 复制与统计 · 项目：工作台全栈版 · 使用统计：复制 7 次（不影响正文版本）</p></div>
+        </div>
+      </div>
+      <p class="annot"><b>走查要点：</b>任务卡片“沉淀”进入此页时正文已聚焦、标题预填；返回回到原任务；危险 HTML 在预览中不执行。</p>
+    </section>
+
+    <!-- ============ AI 台账 ============ -->
+    <section class="screen" id="ledger">
+      <h1 class="h1">AI 台账</h1>
+      <p class="sub">记录 → 月度统计 → 近八周趋势；数字结论必须可由明细复核。</p>
+      <div class="split">
+        <div class="card">
+          <b>新增记录</b>
+          <div class="grid2" style="margin-top:8px">
+            <div class="input">日期 2026-11-03</div><div class="input">工具：Claude / Copilot ▾</div>
+            <div class="input">场景：编码 ▾</div><div class="input">时长（分钟）30</div>
+            <div class="input">节省（分钟）40</div><div class="input">效果 1–5：4</div>
+          </div>
+          <div class="row" style="margin-top:8px"><button class="btn primary">保存</button><span class="annot">minutes&gt;0、saved≥0、effect 为 1–5 整数</span></div>
+        </div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between"><b>2026 年 11 月</b><span class="chip">‹ 上一月</span><span class="chip">下一月 ›</span></div>
+          <div class="list" style="margin-top:8px">
+            <div class="item"><div class="grow"><div class="bar w60"></div></div><span class="badge">30 分钟</span><span class="badge">效果 4</span></div>
+            <div class="item"><div class="grow"><div class="bar w40"></div></div><span class="badge">20 分钟</span><span class="badge">效果 3</span></div>
+          </div>
+          <p class="annot">本月 12 条 · 平均效果 4.0 · 累计节省 40 分钟</p>
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="fig"><b>按场景分布（条形）</b><div class="axis" style="margin-top:8px"><i style="height:80%"></i><i style="height:55%"></i><i style="height:30%"></i><i style="height:15%"></i></div><p class="annot">SVG 绘制，空月份显示“本月暂无记录”，不画 0 高度误导线。</p></div>
+        <div class="fig"><b>近八周趋势（折线）</b><div class="axis" style="margin-top:8px"><i style="height:40%"></i><i style="height:60%"></i><i style="height:50%"></i><i style="height:75%"></i><i style="height:65%"></i><i style="height:85%"></i><i style="height:70%"></i><i style="height:90%"></i></div><p class="annot">周一为周起点；缺周补 0；全零不出 NaN。</p></div>
+      </div>
+      <p class="annot"><b>走查要点：</b>月份切换保留筛选；保存后列表与两张图同步刷新；数值非法就地提示不提交。</p>
+    </section>
+
+    <!-- ============ 设置 ============ -->
+    <section class="screen" id="settings">
+      <h1 class="h1">设置</h1>
+      <p class="sub">个人偏好跨设备同步；空间时区仅 Owner 可改并审计。</p>
+      <div class="tabs"><span class="on">个人偏好</span><span>空间</span><span>成员</span><span>回收站</span><span>导入导出</span><span>会话与安全</span></div>
+      <div class="grid2">
+        <div class="card">
+          <b>外观与偏好</b>
+          <div class="row" style="margin-top:8px"><span class="chip on">跟随系统</span><span class="chip">浅色</span><span class="chip">深色</span></div>
+          <p class="annot">首屏前应用主题，避免闪白；偏好写入服务端并本地缓存。</p>
+        </div>
+        <div class="card">
+          <b>空间</b>
+          <div class="col" style="margin-top:8px"><div class="input">名称：个人工作台</div><div class="input">时区：Asia/Shanghai（IANA）</div>
+          <div class="notice warn">修改时区会改变“今日”与逾期口径，需二次确认并记录审计。</div></div>
+        </div>
+        <div class="card">
+          <b>成员与权限</b>
+          <div class="list" style="margin-top:8px">
+            <div class="item"><div class="grow">我（Owner）</div><span class="badge">最后 Owner 不可移除</span></div>
+            <div class="item"><div class="grow">同事 A（Editor）</div><button class="btn">改角色</button><button class="btn">移除</button></div>
+            <div class="item"><div class="grow">同事 B（Viewer）</div><button class="btn">改角色</button><button class="btn">移除</button></div>
+          </div>
+          <div class="row" style="margin-top:8px"><button class="btn primary">生成邀请链接</button><span class="annot">一次性、24 小时有效、仅存哈希；无邮件，复制链接手工发送。</span></div>
+        </div>
+        <div class="card">
+          <b>回收站</b>
+          <div class="list" style="margin-top:8px">
+            <div class="item"><div class="grow"><div class="bar w60"></div></div><span class="badge">剩余 28 天</span><button class="btn">恢复</button><button class="btn">彻底删除</button></div>
+          </div>
+          <p class="annot">彻底删除需 Owner 二次确认并写审计；恢复不复活已删除的父关系。</p>
+        </div>
+        <div class="card">
+          <b>导入导出</b>
+          <div class="col" style="margin-top:8px">
+            <div class="row"><button class="btn">导出 JSON</button><button class="btn">导出 Markdown</button><span class="annot">job 进度 + 过期下载链接</span></div>
+            <div class="input">选择文件（schema1 / schema2）</div>
+            <div class="notice">预览：新增 320 · 更新 12 · 冲突 3 · 忽略 5 → 确认后才写库</div>
+          </div>
+        </div>
+        <div class="card">
+          <b>会话与安全</b>
+          <div class="list" style="margin-top:8px"><div class="item"><div class="grow">本机 · Chrome · 今天 09:12</div><span class="badge">当前</span></div>
+          <div class="item"><div class="grow">手机 · Safari · 昨天</div><button class="btn">吊销</button></div></div>
+          <p class="annot">改密后吊销其他会话；空闲 24 小时、绝对 7 天到期。</p>
+        </div>
+      </div>
+      <p class="annot"><b>走查要点：</b>六个分区均可直达；危险操作有二次确认；Viewer 看不到成员管理但仍可改本人密码与主题。</p>
+    </section>
+
+    <!-- ============ 全局搜索 ============ -->
+    <section class="screen" id="search">
+      <h1 class="h1">全局搜索（Ctrl / Cmd + K）</h1>
+      <p class="sub">同一浮层在任意页面可用；仅搜索当前空间；结果支持键盘上下选择与 Enter 打开。</p>
+      <div class="card">
+        <div class="input">断连 <span class="kbd">↑</span><span class="kbd">↓</span> 选择 · <span class="kbd">Enter</span> 打开 · <span class="kbd">Esc</span> 关闭</div>
+        <div class="list" style="margin-top:10px">
+          <div class="item" style="border-color:var(--accent)"><div class="grow"><b>断连重试的幂等设计</b><div class="annot">知识 · ADR · 命中正文“断连”</div></div><span class="badge">打开</span></div>
+          <div class="item"><div class="grow"><b>F37 多设备冲突与刷新</b><div class="annot">任务 · 命中标题</div></div></div>
+        </div>
+        <p class="annot">无结果时提示“没有匹配，试试更短关键词”；两字词走短词路径并显示耗时（性能回归用）。</p>
+      </div>
+      <p class="annot"><b>走查要点：</b>输入框自动聚焦；结果分组（任务/知识/项目）；Esc 恢复原页面焦点；不相关热门条目不进入。</p>
+    </section>
+
+    <!-- ============ 状态与异常 ============ -->
+    <section class="screen" id="states">
+      <h1 class="h1">状态与异常</h1>
+      <p class="sub">所有列表与详情都必须覆盖以下状态；文案区分“空数据”与“筛选无结果”。</p>
+      <div class="grid2">
+        <div class="card dash"><b>空态</b><div class="col" style="align-items:center;padding:14px"><div class="bar w40"></div><p class="annot">今天还没有任务</p><button class="btn primary">新建任务</button></div></div>
+        <div class="card"><b>加载态</b><div class="list">
+          <div class="item"><div class="bar w60"></div></div><div class="item"><div class="bar w40"></div></div>
+        </div><p class="annot">骨架屏，占位高度与真实行一致，避免跳动。</p></div>
+        <div class="card"><b>加载失败</b><div class="notice danger">加载失败（请求 ID：r-8f2c）<div class="row" style="margin-top:6px"><button class="btn">重试</button><button class="btn">查看离线缓存</button></div></div></div>
+        <div class="card"><b>保存失败 / 结果未知</b><div class="notice warn">网络中断，内容已留在本机草稿。恢复后自动重试（同一幂等键）。</div><p class="annot">不得显示“已保存”；成功提示只以服务器提交结果为准。</p></div>
+        <div class="card"><b>并发冲突（412）</b><div class="notice warn">这条记录已被其他设备修改（版本 7 → 9）<div class="row" style="margin-top:6px"><button class="btn">对比我的 / 服务器</button><button class="btn">以服务器为准</button></div></div></div>
+        <div class="card"><b>离线待同步</b><div class="notice">离线：只读已缓存数据 · 待同步 2 条<div class="row" style="margin-top:6px"><span class="chip">新建日志 1</span><span class="chip">知识草稿 1</span></div></div><p class="annot">账号/空间切换时分区隔离，未同步内容不可被其他账号读取。</p></div>
+        <div class="card"><b>无权限（403）</b><div class="notice danger">当前角色（Viewer）不能执行此操作。请联系空间 Owner。</div></div>
+        <div class="card"><b>会话过期（401）</b><div class="notice warn">登录已过期，请重新登录以继续；你的输入已保留。</div></div>
+      </div>
+      <p class="annot"><b>走查要点：</b>八种状态均有独立文案与出口；错误均带 requestId 便于对日志。</p>
+    </section>
+
+    <!-- ============ 375px ============ -->
+    <section class="screen" id="mobile">
+      <h1 class="h1">375px 移动布局</h1>
+      <p class="sub">底部标签栏 + 顶部空间切换；点击区 ≥44px；输入字号 ≥16px 防缩放。</p>
+      <div class="row" style="align-items:flex-start">
+        <div class="phone">
+          <div class="phbar"><i></i></div>
+          <div class="phbody">
+            <div class="row" style="justify-content:space-between"><b style="font-size:13px">今日聚焦</b><span class="badge">已同步</span></div>
+            <div class="notice" style="font-size:11px">紧急 4 · 昨日未完成 2</div>
+            <div class="item"><span class="pin"></span><div class="grow"><div class="bar w80"></div></div><span class="badge p0">P0</span></div>
+            <div class="item"><div class="grow"><div class="bar w60"></div></div><span class="badge p1">P1</span></div>
+            <div class="item"><div class="grow"><div class="bar w40"></div></div><span class="badge p2">P2</span></div>
+            <div class="input" style="font-size:16px">记一条日志…</div>
+            <div class="phtab"><span class="on">今日</span><span>项目</span><span>知识</span><span>台账</span><span>设置</span></div>
+          </div>
+        </div>
+        <div class="col" style="flex:1;min-width:240px">
+          <div class="card"><b>断点策略</b><p class="annot">≥1024px：左侧导航 + 三列；768–1023px：两列 + 折叠导航；&lt;768px：底部标签栏 + 单列。仅保留必要列，不横向滚动。</p></div>
+          <div class="card"><b>键盘与输入法</b><p class="annot">Tab 顺序：空间切换 → 搜索 → 主内容 → 页脚；弹层内焦点锁定并 Esc 关闭；组合输入期间不触发快捷键。</p></div>
+          <div class="card"><b>移动专用动作</b><p class="annot">快速捕获为浮动按钮；任务卡片左滑显示完成/改期；日志输入框固定在键盘上方。</p></div>
+        </div>
+      </div>
+      <p class="annot"><b>走查要点：</b>无横向滚动；44px 点击区；16px 输入；返回路径始终可见。</p>
+    </section>
+  </main>
+
+  <nav class="bottombar" aria-label="移动导航">
+    <a href="#today" data-nav="today">今日</a>
+    <a href="#projects" data-nav="projects">项目</a>
+    <a href="#kb" data-nav="kb">知识</a>
+    <a href="#ledger" data-nav="ledger">台账</a>
+    <a href="#settings" data-nav="settings">设置</a>
+  </nav>
+</div>
+
+<script>
+  const screens = [...document.querySelectorAll('.screen')].map(s => s.id);
+  const extra = ['mobile'];
+  function show(id){
+    const target = screens.includes(id) ? id : 'today';
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === target));
+    document.querySelectorAll('[data-nav]').forEach(a => {
+      const on = a.getAttribute('data-nav') === target;
+      if (on) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
+    });
+    document.title = 'AI 编程工作台 · ' + target + ' · 原型';
+  }
+  const fromHash = () => (location.hash || '#today').slice(1);
+  window.addEventListener('hashchange', () => show(fromHash()));
+  document.querySelectorAll('[data-go]').forEach(el => el.addEventListener('click', () => { location.hash = '#' + el.dataset.go; }));
+  // 键盘：数字 1–8 快速切换原型屏；Ctrl/Cmd+K 打开搜索屏
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); location.hash = '#search'; }
+    const map = {'1':'today','2':'projects','3':'kb','4':'ledger','5':'settings','6':'states','7':'login','8':'search','9':'mobile'};
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && map[e.key] && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) location.hash = '#' + map[e.key];
+  });
+  show(fromHash());
+</script>
+</body>
+</html>

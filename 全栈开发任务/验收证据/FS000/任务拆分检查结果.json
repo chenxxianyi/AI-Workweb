@@ -1,0 +1,18 @@
+{
+  "status": "通过",
+  "checkedAtShanghai": "2026-11-03 12:02:46",
+  "taskPackageVersion": "V2.1",
+  "stages": 13,
+  "individualTaskDocuments": 52,
+  "acceptanceCases": 156,
+  "requirementIds": 30,
+  "developmentCheckpointRecords": 52,
+  "pendingDevelopmentTasks": 52,
+  "activeMarkdownDocuments": 195,
+  "localLinksVerified": 1355,
+  "taskAnchorsVerified": 52,
+  "inputPlanSHA256": "5136b495e37c493ef38587bedeb35971bf2755c355f3e0d36118753e8ea6e79e",
+  "inputPlanUnchanged": true,
+  "applicationDeveloped": false,
+  "developmentSnapshotsCreated": false
+}

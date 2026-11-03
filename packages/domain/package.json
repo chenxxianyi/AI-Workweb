@@ -1,0 +1,25 @@
+{
+  "name": "@aiwb/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "纯业务日期函数：业务日、周/月区间、日期校验（无 IO、无框架依赖）",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "5.1.0"
+  }
+}

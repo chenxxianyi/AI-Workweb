@@ -1,0 +1,35 @@
+{
+  "name": "ai-coding-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI 编程工作台 · 私有部署全栈应用（今日聚焦 / 项目雷达 / 知识库 / AI 台账）",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22.23.4 <23",
+    "pnpm": ">=11.25.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r test",
+    "test:unit": "pnpm --filter @aiwb/domain test && pnpm --filter @aiwb/contracts test",
+    "dev": "pnpm -r --parallel dev",
+    "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 status",
+    "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 start",
+    "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 stop",
+    "db:init": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 init",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.6",
+    "eslint": "10.14.0",
+    "globals": "17.14.0",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
+  }
+}

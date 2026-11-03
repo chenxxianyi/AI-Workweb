@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+.data/
+全栈开发任务/
+docs/api/openapi.yaml
+docs/prototypes/
+*.md

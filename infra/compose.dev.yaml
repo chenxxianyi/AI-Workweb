@@ -1,0 +1,36 @@
+# 开发用 Compose（可选，非本机默认路径）
+#
+# 本机未安装 Docker（见 docs/架构与版本矩阵.md 第 5 节），因此开发数据库默认使用
+# scripts/dev-db.ps1（项目内隔离实例，127.0.0.1:55432）。
+# 本文件提供给"有 Docker 的机器"复现同一套开发依赖，并作为 F43 生产 Compose 的基础。
+#
+# 用法（需要 Docker Desktop / Docker Engine）：
+#   docker compose -f infra/compose.dev.yaml up -d
+#   docker compose -f infra/compose.dev.yaml down
+#
+# 注意：本文件在本机未执行，未作为 F04 验收证据；F43 会用真实容器复核。
+
+services:
+  db:
+    image: postgres:17.11-alpine
+    container_name: aiwb-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aiwb
+      POSTGRES_PASSWORD: ${AIWB_DB_PASSWORD:?set AIWB_DB_PASSWORD in .env}
+      POSTGRES_DB: aiwb_dev
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
+    ports:
+      # 仅本机可连，不对局域网暴露
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - aiwb-dev-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiwb -d aiwb_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  aiwb-dev-db:
