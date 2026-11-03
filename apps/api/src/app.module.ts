@@ -7,6 +7,8 @@ import { ResponseEnvelopeInterceptor } from './common/response.interceptor.js';
 import { createAccessLogMiddleware } from './common/logger.js';
 import { HealthController } from './modules/health/health.controller.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { WorkspaceModule } from './modules/workspaces/workspace.module.js';
+import { WorkspaceGuard } from './modules/workspaces/workspace.guard.js';
 import { CsrfGuard } from './modules/auth/csrf.guard.js';
 import { SessionAuthGuard } from './modules/auth/session.guard.js';
 
@@ -21,7 +23,7 @@ import { SessionAuthGuard } from './modules/auth/session.guard.js';
  * 公开路由用 `@Public()` 显式开放；写请求默认校验 CSRF，持有型凭据用 `@CsrfExempt()`。
  */
 @Module({
-  imports: [ConfigModule, PrismaModule, AuthModule],
+  imports: [ConfigModule, PrismaModule, AuthModule, WorkspaceModule],
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
@@ -29,6 +31,7 @@ import { SessionAuthGuard } from './modules/auth/session.guard.js';
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: SessionAuthGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
+    { provide: APP_GUARD, useClass: WorkspaceGuard },
   ],
 })
 export class AppModule implements NestModule {
