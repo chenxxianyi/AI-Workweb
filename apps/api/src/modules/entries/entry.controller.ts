@@ -123,6 +123,22 @@ export class EntryController {
     return { data: await this.entries.revisions(context.workspaceId, entryId) };
   }
 
+  @Post('entries/:entryId/revisions/:revisionId/restore')
+  @HttpCode(200)
+  @WorkspaceRoleRequired('business.write')
+  async restore(
+    @Req() request: Request,
+    @Param('entryId') entryId: string,
+    @Param('revisionId') revisionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+  ): Promise<{ data: EntryView }> {
+    const auth = requireRequestAuth(request);
+    const context = workspaceContext(request);
+    return {
+      data: await this.entries.restoreRevision(context.workspaceId, auth.userId, entryId, revisionId, ifMatch),
+    };
+  }
+
   @Delete('entries/:entryId')
   @HttpCode(200)
   @WorkspaceRoleRequired('business.write')

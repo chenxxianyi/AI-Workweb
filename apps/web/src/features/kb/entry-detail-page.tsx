@@ -5,7 +5,7 @@ import { ErrorState, LoadingState, PageHeader } from '../../components/states';
 import { useWorkspace } from '../../providers/workspace-provider';
 import { ApiError } from '../../services/api-client';
 import { describeApiError } from '../../services/auth-api';
-import { kbApi, type EntryInput, type EntryStatus } from '../../services/kb-api';
+import { kbApi, type EntryInput, type EntryRevision, type EntryStatus } from '../../services/kb-api';
 import { Markdown } from './markdown';
 import { EntryEditor } from './entry-editor';
 import { NEXT_STATUS, STATUS_LABEL, TYPE_LABEL } from './kb-utils';
@@ -32,6 +32,8 @@ export function EntryDetailPage(): React.JSX.Element {
   const [editError, setEditError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [previewRevision, setPreviewRevision] = useState<EntryRevision | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState(false);
 
   const entryQuery = useQuery({
     queryKey: ['ws', workspaceId, 'entry', entryId],
@@ -39,8 +41,15 @@ export function EntryDetailPage(): React.JSX.Element {
     enabled: workspaceId !== '' && entryId !== '',
   });
 
+  const revisionsQuery = useQuery({
+    queryKey: ['ws', workspaceId, 'entry', entryId, 'revisions'],
+    queryFn: ({ signal }) => kbApi.revisions(workspaceId, entryId, { signal }),
+    enabled: workspaceId !== '' && entryId !== '',
+  });
+
   const invalidate = (): void => {
     void queryClient.invalidateQueries({ queryKey: ['ws', workspaceId, 'entry', entryId] });
+    void queryClient.invalidateQueries({ queryKey: ['ws', workspaceId, 'entry', entryId, 'revisions'] });
     void queryClient.invalidateQueries({ queryKey: ['ws', workspaceId, 'entries'] });
     void queryClient.invalidateQueries({ queryKey: ['ws', workspaceId, 'tags'] });
     void queryClient.invalidateQueries({ queryKey: ['ws', workspaceId, 'dashboard'] });
@@ -87,6 +96,24 @@ export function EntryDetailPage(): React.JSX.Element {
       navigate(from, { replace: true });
     },
     onError: (error) => setActionError(describeApiError(error)),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (revisionId: string) => {
+      const entry = entryQuery.data;
+      if (entry === undefined) throw new Error('条目尚未加载');
+      return kbApi.restoreRevision(workspaceId, entry, revisionId);
+    },
+    onSuccess: () => {
+      setConfirmRestore(false);
+      setPreviewRevision(null);
+      setActionError(null);
+      invalidate();
+    },
+    onError: (error) => {
+      setActionError(describeApiError(error));
+      if (error instanceof ApiError && error.isConflict) invalidate();
+    },
   });
 
   if (entryQuery.status === 'pending') return <LoadingState label="加载条目…" />;
@@ -191,6 +218,87 @@ export function EntryDetailPage(): React.JSX.Element {
           <p className={styles.muted}>正文还是空的。点击「编辑」写下结论、命令或排错过程。</p>
         )}
       </article>
+
+      <section className={styles.history} aria-label="版本历史">
+        <h2 className={styles.sectionTitle}>
+          版本历史
+          <span className={styles.historyCount}>
+            最近 {revisionsQuery.data?.revisions.length ?? 0} / 5 条正文修订
+          </span>
+        </h2>
+        {revisionsQuery.status === 'pending' ? <p className={styles.muted}>加载修订…</p> : null}
+        {(revisionsQuery.data?.revisions.length ?? 0) === 0 ? (
+          <p className={styles.muted}>还没有历史修订；修改正文后会自动保留最近 5 版。</p>
+        ) : (
+          <ul className={styles.revisionList}>
+            {(revisionsQuery.data?.revisions ?? []).map((revision) => (
+              <li key={revision.id} className={styles.revisionItem} data-revision-id={revision.id}>
+                <span className={styles.revisionTime}>
+                  {revision.savedAt.slice(0, 16).replace('T', ' ')}
+                </span>
+                <span className={styles.revisionMeta}>
+                  源版本 v{revision.sourceVersion} · {(revision.bodyBytes / 1024).toFixed(1)} KB
+                </span>
+                <button type="button" className={styles.small} onClick={() => setPreviewRevision(revision)}>
+                  预览
+                </button>
+                <button
+                  type="button"
+                  className={styles.small}
+                  disabled={!writable}
+                  onClick={() => {
+                    setPreviewRevision(revision);
+                    setConfirmRestore(true);
+                  }}
+                >
+                  恢复此版本
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {previewRevision === null ? null : (
+        <div className={styles.preview} role="region" aria-label="修订预览">
+          <div className={styles.previewHead}>
+            <strong>
+              预览 {previewRevision.savedAt.slice(0, 16).replace('T', ' ')}（源版本 v{previewRevision.sourceVersion}）
+            </strong>
+            <button type="button" className={styles.small} onClick={() => setPreviewRevision(null)}>
+              关闭预览
+            </button>
+          </div>
+          {previewRevision.body.trim() === '' ? (
+            <p className={styles.muted}>该修订正文为空。</p>
+          ) : (
+            <Markdown source={previewRevision.body} />
+          )}
+        </div>
+      )}
+
+      {confirmRestore && previewRevision !== null ? (
+        <div className={styles.confirm} role="alertdialog" aria-label="确认恢复版本">
+          <p className={styles.confirmTitle}>恢复到这个版本？</p>
+          <p className={styles.muted}>
+            当前正文会先保存为一条修订（之后仍可再恢复），然后替换为所选版本。
+          </p>
+          <div className={styles.actions}>
+            <button type="button" className={styles.secondary} onClick={() => setConfirmRestore(false)}>
+              取消
+            </button>
+            <button
+              type="button"
+              className={styles.primary}
+              data-testid="confirm-restore"
+              onClick={() => restoreMutation.mutate(previewRevision.id)}
+              disabled={restoreMutation.isPending}
+            >
+              {restoreMutation.isPending ? '恢复中…' : '确认恢复'}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {confirmDelete ? (
         <div className={styles.confirm} role="alertdialog" aria-label="确认删除知识条目">

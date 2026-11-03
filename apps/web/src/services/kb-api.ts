@@ -52,6 +52,15 @@ export interface EntryFilters {
   cursor?: string;
 }
 
+export interface EntryRevision {
+  id: string;
+  body: string;
+  bodyBytes: number;
+  savedAt: string;
+  sourceVersion: number;
+  savedBy: string;
+}
+
 export interface TagCount {
   name: string;
   count: number;
@@ -118,8 +127,21 @@ export const kbApi = {
     });
   },
 
-  revisions: (workspaceId: string, entryId: string) =>
-    apiClient.get<{ revisions: { id: string; bodyBytes: number; savedAt: string; sourceVersion: number }[] }>(
-      `/workspaces/${workspaceId}/entries/${entryId}/revisions`,
-    ),
+  revisions: (workspaceId: string, entryId: string, options: { signal?: AbortSignal } = {}) =>
+    apiClient.get<{ revisions: EntryRevision[] }>(`/workspaces/${workspaceId}/entries/${entryId}/revisions`, {
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    }),
+
+  async restoreRevision(
+    workspaceId: string,
+    entry: Pick<Entry, 'id' | 'version'>,
+    revisionId: string,
+  ): Promise<Entry> {
+    await ensureCsrfToken();
+    return apiClient.post<Entry>(
+      `/workspaces/${workspaceId}/entries/${entry.id}/revisions/${revisionId}/restore`,
+      {},
+      { ifMatch: entry.version },
+    );
+  },
 };

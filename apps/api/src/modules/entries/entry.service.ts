@@ -24,6 +24,8 @@ import { ProjectService } from '../projects/project.service.js';
  */
 const BODY_LIMIT_BYTES = 20480;
 const MAX_TAGS = 10;
+/** 每个条目保留的正文修订条数（F21：7 次修改只留最近 5 版） */
+const REVISION_KEEP = 5;
 const MAX_TAG_LENGTH = 32;
 
 export interface EntryInput {
@@ -368,7 +370,7 @@ export class EntryService {
         });
       }
 
-      // 正文变化前保存上一版，便于回溯
+      // 正文变化前保存上一版，便于回溯；只改标签/标题不产生正文修订
       if (input.body !== undefined && input.body !== current.body) {
         await client.entryRevision.create({
           data: {
@@ -379,6 +381,7 @@ export class EntryService {
             sourceVersion: current.version,
           },
         });
+        await this.trimRevisions(client, workspaceId, entryId);
       }
 
       const updated = await client.entry.updateMany({
@@ -501,25 +504,109 @@ export class EntryService {
     });
   }
 
+  /** 每个条目只保留最近 5 条正文修订（契约 C-23）；裁剪与写入在同一事务内 */
+  private async trimRevisions(client: PrismaClient, workspaceId: string, entryId: string): Promise<void> {
+    const keep = await client.entryRevision.findMany({
+      where: { workspaceId, entryId },
+      orderBy: { savedAt: 'desc' },
+      take: REVISION_KEEP,
+      select: { id: true },
+    });
+    const keepIds = keep.map((row) => row.id);
+    await client.entryRevision.deleteMany({
+      where: { workspaceId, entryId, id: { notIn: keepIds } },
+    });
+  }
+
   async revisions(
     workspaceId: string,
     entryId: string,
-  ): Promise<{ revisions: { id: string; bodyBytes: number; savedAt: string; sourceVersion: number }[] }> {
+  ): Promise<{
+    revisions: { id: string; body: string; bodyBytes: number; savedAt: string; sourceVersion: number; savedBy: string }[];
+  }> {
     const entry = await this.db.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null }, select: { id: true } });
     if (entry === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
     const rows = await this.db.entryRevision.findMany({
       where: { workspaceId, entryId },
       orderBy: { savedAt: 'desc' },
-      take: 50,
+      take: REVISION_KEEP,
     });
     return {
       revisions: rows.map((row) => ({
         id: row.id,
+        body: row.body,
         bodyBytes: Buffer.byteLength(row.body, 'utf8'),
         savedAt: row.savedAt.toISOString(),
         sourceVersion: row.sourceVersion,
+        savedBy: row.savedBy,
       })),
     };
+  }
+
+  /**
+   * 回滚到指定修订（F21）。
+   *
+   * 顺序很重要（F21-03）：
+   * 1. 校验 If-Match，过期直接 412（并发回滚不会覆盖更新版本）
+   * 2. **先把当前正文存为新修订**（保证“回滚后还能再回到刚才的内容”）
+   * 3. 再把正文替换为目标修订内容，版本 +1
+   * 4. 裁剪到最近 5 条
+   * 以上全部在同一事务中，任一步失败整体回滚，不会出现“半次恢复”。
+   */
+  async restoreRevision(
+    workspaceId: string,
+    actorUserId: string,
+    entryId: string,
+    revisionId: string,
+    ifMatch: string | string[] | undefined,
+  ): Promise<EntryView> {
+    const expected = requireIfMatch(ifMatch);
+
+    await this.db.$transaction(async (tx) => {
+      const client = tx as unknown as PrismaClient;
+      const current = await client.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null } });
+      if (current === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
+      if (current.version !== expected) {
+        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', { currentVersion: current.version });
+      }
+
+      const revision = await client.entryRevision.findFirst({
+        where: { id: revisionId, entryId, workspaceId },
+      });
+      if (revision === null) throw new ApiException('REVISION_NOT_FOUND', '修订不存在或不属于该条目');
+
+      // 先保留当前正文
+      await client.entryRevision.create({
+        data: {
+          workspaceId,
+          entryId,
+          body: current.body,
+          savedBy: actorUserId,
+          sourceVersion: current.version,
+        },
+      });
+      await this.trimRevisions(client, workspaceId, entryId);
+
+      const updated = await client.entry.updateMany({
+        where: { id: entryId, workspaceId, version: expected, deletedAt: null },
+        data: { body: revision.body, version: { increment: 1 } },
+      });
+      if (updated.count === 0) throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改');
+
+      await client.auditEvent.create({
+        data: {
+          workspaceId,
+          actorId: actorUserId,
+          action: 'entry.revision_restored',
+          entityType: 'entry',
+          entityId: entryId,
+          result: 'success',
+          summary: `回滚正文到修订（源版本 ${revision.sourceVersion}）`,
+        },
+      });
+    });
+
+    return this.get(workspaceId, entryId);
   }
 
   async listTags(workspaceId: string): Promise<{ tags: { name: string; count: number }[] }> {
