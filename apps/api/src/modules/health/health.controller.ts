@@ -1,4 +1,5 @@
 import { Controller, Get, Inject } from '@nestjs/common';
+import { Public } from '../auth/auth-context.js';
 import { PrismaService } from '../../common/prisma.module.js';
 import { ApiException } from '../../common/api-exception.js';
 
@@ -10,6 +11,7 @@ import { ApiException } from '../../common/api-exception.js';
  * 注意：构造函数依赖使用显式 `@Inject`，不依赖 `emitDecoratorMetadata`
  * （esbuild/tsx 不生成 design:paramtypes；显式注入让 tsc、tsx、vitest 下行为一致）。
  */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
