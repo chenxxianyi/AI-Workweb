@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { config as loadEnvFile } from 'dotenv';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { createPrismaAdapter } from '../src/common/prisma-adapter.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { bootstrapOwner } from '../src/modules/auth/auth-core.js';
 import { hashPassword } from '../src/modules/auth/password.js';
@@ -34,7 +34,7 @@ process.env['RATE_LIMIT_LOGIN_PER_MINUTE'] = '100';
 process.env['COOKIE_SECURE'] = 'false';
 
 const { AppModule } = await import('../src/app.module.js');
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+const prisma = new PrismaClient({ adapter: createPrismaAdapter(databaseUrl) });
 
 const results: { name: string; ok: boolean; detail?: string }[] = [];
 function check(name: string, ok: boolean, detail?: string): void {

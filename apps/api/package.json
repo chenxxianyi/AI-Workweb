@@ -18,6 +18,7 @@
     "test:project": "tsx --tsconfig tsconfig.test.json test/project-check.ts",
     "test:task": "tsx --tsconfig tsconfig.test.json test/task-check.ts",
     "test:dashboard": "tsx --tsconfig tsconfig.test.json test/dashboard-check.ts",
+    "test:ledger": "tsx --tsconfig tsconfig.test.json test/ledger-check.ts",
     "auth:bootstrap": "tsx src/cli/bootstrap-owner.ts",
     "auth:recover": "tsx src/cli/recover-account.ts",
     "auth:calibrate": "tsx src/cli/password-calibrate.ts"

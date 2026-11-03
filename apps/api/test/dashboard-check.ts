@@ -3,8 +3,8 @@ import type { INestApplication } from '@nestjs/common';
 import { config as loadEnvFile } from 'dotenv';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { addDays, businessDate } from '@aiwb/domain';
+import { createPrismaAdapter } from '../src/common/prisma-adapter.js';
+import { addDays, businessDate, diffDays } from '@aiwb/domain';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { bootstrapOwner } from '../src/modules/auth/auth-core.js';
 import { hashPassword } from '../src/modules/auth/password.js';
@@ -35,7 +35,7 @@ process.env['RATE_LIMIT_LOGIN_PER_MINUTE'] = '100';
 process.env['COOKIE_SECURE'] = 'false';
 
 const { AppModule } = await import('../src/app.module.js');
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+const prisma = new PrismaClient({ adapter: createPrismaAdapter(databaseUrl) });
 
 const results: { name: string; ok: boolean; detail?: string }[] = [];
 function check(name: string, ok: boolean, detail?: string): void {
@@ -254,7 +254,11 @@ check('紧急-逾期列表按日期升序且天数正确', overdueList.length ==
 check('逾期列表不含已完成/已删除/今日到期', !overdueList.some((task) => task.title.includes('已完成') || task.title.includes('删除') || task.title === '今日到期'));
 
 const stalledList = data?.urgent?.stalled ?? [];
-check('紧急-停滞列表只有 1 条且天数 ≥4', stalledList.length === 1 && (stalledList[0]?.stalledDays ?? 0) >= 4);
+check(
+  '紧急-停滞列表只有 1 条且天数 ≥4',
+  stalledList.length === 1 && (stalledList[0]?.stalledDays ?? 0) >= 4,
+  'list=' + JSON.stringify(stalledList.map((task) => ({ title: task.title, stalledDays: task.stalledDays, status: task.status }))),
+);
 
 const draftList = data?.urgent?.staleDrafts ?? [];
 check('紧急-草稿列表只有 1 条且年龄 ≥8', draftList.length === 1 && (draftList[0]?.ageDays ?? 0) >= 8);

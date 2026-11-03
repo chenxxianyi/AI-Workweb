@@ -10,6 +10,7 @@ export function createPrismaClient(connectionString = process.env['DATABASE_URL'
   if (connectionString === undefined || connectionString === '') {
     throw new Error('缺少 DATABASE_URL：请从 .env.example 复制 .env 并填写');
   }
-  const adapter = new PrismaPg({ connectionString });
+  // 与 apps/api 保持一致：会话时区固定 UTC，避免 timestamptz 读回偏移（见 prisma-adapter.ts 注释）
+const adapter = new PrismaPg({ connectionString, options: '-c timezone=UTC' });
   return new PrismaClient({ adapter });
 }

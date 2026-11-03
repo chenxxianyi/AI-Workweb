@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { createPrismaAdapter } from '../src/common/prisma-adapter.js';
 import { config as loadEnvFile } from 'dotenv';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import {
@@ -37,7 +37,7 @@ if (!databaseName.endsWith('_test')) {
 }
 console.log(`[auth-check] 数据库：${databaseName}（集成测试库）`);
 
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+const prisma = new PrismaClient({ adapter: createPrismaAdapter(databaseUrl) });
 const DOMAIN = 'authtest.local';
 const EMAILS = [`owner@${DOMAIN}`, `second@${DOMAIN}`, `cli@${DOMAIN}`];
 const results: { name: string; ok: boolean; detail?: string }[] = [];
