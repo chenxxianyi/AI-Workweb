@@ -39,7 +39,13 @@ export interface ProjectOverview {
   project: Project;
   tasks: {
     counts: { total: number; done: number };
-    recent: { id: string; title: string; status: string; priority: string; dueDate: string | null }[];
+    recent: {
+      id: string;
+      title: string;
+      status: string;
+      priority: string;
+      dueDate: string | null;
+    }[];
   };
   entries: {
     recent: { id: string; title: string; type: string; status: string; updatedAt: string }[];
@@ -49,7 +55,14 @@ export interface ProjectOverview {
     totalMinutes: number;
     totalSavedMinutes: number;
     averageEffect: number | null;
-    recent: { id: string; recordDate: string; tool: string; scene: string; minutes: number; effect: number }[];
+    recent: {
+      id: string;
+      recordDate: string;
+      tool: string;
+      scene: string;
+      minutes: number;
+      effect: number;
+    }[];
   };
 }
 
@@ -99,7 +112,13 @@ export function stackInputToArray(value: string): string[] {
 export const projectsApi = {
   list: (
     workspaceId: string,
-    options: { filter?: ProjectFilter; q?: string; limit?: number; cursor?: string; signal?: AbortSignal } = {},
+    options: {
+      filter?: ProjectFilter;
+      q?: string;
+      limit?: number;
+      cursor?: string;
+      signal?: AbortSignal;
+    } = {},
   ) => {
     const params = new URLSearchParams();
     if (options.filter !== undefined) params.set('filter', options.filter);
@@ -120,9 +139,11 @@ export const projectsApi = {
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     }),
 
-  async create(workspaceId: string, input: ProjectInput): Promise<Project> {
+  async create(workspaceId: string, input: ProjectInput, key: string): Promise<Project> {
     await ensureCsrfToken();
-    return apiClient.post<Project>(`/workspaces/${workspaceId}/projects`, input);
+    return apiClient.post<Project>(`/workspaces/${workspaceId}/projects`, input, {
+      idempotencyKey: key,
+    });
   },
 
   async update(

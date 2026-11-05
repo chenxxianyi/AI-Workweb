@@ -1,0 +1,1497 @@
+{
+  "browser": "IAB Chromium 156",
+  "cases": 90,
+  "passed": 90,
+  "results": [
+    {
+      "path": "/today",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "今日聚焦",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/projects",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "项目雷达",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/projects/a4211111-1111-4111-8111-111111111111",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长长",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/kb",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "知识库",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/kb/a4222222-2222-4222-8222-222222222222",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长长",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/ledger",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "AI 台账",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "设置",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/transfers",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "导入与导出",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/maintenance",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "回收站与空间维护",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/team",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "成员与邀请",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/audit",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "操作审计",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/offline",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "本机草稿与待同步",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/search",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "全局搜索",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/missing-f42",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "404 · 页面不存在",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/today",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "今日聚焦",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/projects",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "项目雷达",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/projects/a4211111-1111-4111-8111-111111111111",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长长",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/kb",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "知识库",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/kb/a4222222-2222-4222-8222-222222222222",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长长",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/ledger",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "AI 台账",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "设置",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/transfers",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "导入与导出",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/maintenance",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "回收站与空间维护",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/team",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "成员与邀请",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/audit",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "操作审计",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/offline",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "本机草稿与待同步",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/search",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "全局搜索",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/missing-f42",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "404 · 页面不存在",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/today",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "今日聚焦",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "修复SSE重复提交"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/projects",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "项目雷达",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "查看详情"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "查看详情"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/projects/a4211111-1111-4111-8111-111111111111",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 15,
+          "tag": "A",
+          "text": "项目雷达"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "长任务长任务长任务长任务长任务长任务长任务长任务"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长长",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回今日聚焦"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "在本机队列记录离线状态变更"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "所属项目"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/kb",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "知识库",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "超过7天的草稿 0 条"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "常用知识与全局搜索"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "F42未提交中文捕获"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "断连问题排查"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "SSE断连重试"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/kb/a4222222-2222-4222-8222-222222222222",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长长",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 15,
+          "tag": "A",
+          "text": "← 返回列表"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/ledger",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "AI 台账",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "设置",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "导入与导出"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "成员与邀请"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "回收站与空间维护"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "操作审计"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/transfers",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "导入与导出",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/maintenance",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "回收站与空间维护",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/team",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "成员与邀请",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/settings/audit",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "操作审计",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/offline",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "本机草稿与待同步",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/search",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "全局搜索",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "超期草稿 0 条"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "SSE断连重试"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/missing-f42",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "404 · 页面不存在",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "回到今日聚焦"
+        }
+      ],
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "path": "/today",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "今日聚焦",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/projects",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "项目雷达",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/projects/a4211111-1111-4111-8111-111111111111",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长长",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/kb",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "知识库",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/kb/a4222222-2222-4222-8222-222222222222",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长长",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/ledger",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "AI 台账",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "设置",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/transfers",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "导入与导出",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/maintenance",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "回收站与空间维护",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/team",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "成员与邀请",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/audit",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "操作审计",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/offline",
+      "width": 375,
+      "clientWidth": 360,
+      "h1": "本机草稿与待同步",
+      "scrollWidth": 360,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/search",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "全局搜索",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/missing-f42",
+      "width": 375,
+      "clientWidth": 375,
+      "h1": "404 · 页面不存在",
+      "scrollWidth": 375,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/today",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "今日聚焦",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/projects",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "项目雷达",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/projects/a4211111-1111-4111-8111-111111111111",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长长",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/kb",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "知识库",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/kb/a4222222-2222-4222-8222-222222222222",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长长",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/ledger",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "AI 台账",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "设置",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/transfers",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "导入与导出",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/maintenance",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "回收站与空间维护",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/team",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "成员与邀请",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/audit",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "操作审计",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/offline",
+      "width": 768,
+      "clientWidth": 753,
+      "h1": "本机草稿与待同步",
+      "scrollWidth": 753,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/search",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "全局搜索",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/missing-f42",
+      "width": 768,
+      "clientWidth": 768,
+      "h1": "404 · 页面不存在",
+      "scrollWidth": 768,
+      "small": [],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/today",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "今日聚焦",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "修复SSE重复提交"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/projects",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "项目雷达",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "查看详情"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "查看详情"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/projects/a4211111-1111-4111-8111-111111111111",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长项目长",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 15,
+          "tag": "A",
+          "text": "项目雷达"
+        },
+        {
+          "height": 20.796875,
+          "tag": "A",
+          "text": "长任务长任务长任务长任务长任务长任务长任务长任务"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长任务长长",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回今日聚焦"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "在本机队列记录离线状态变更"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "所属项目"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/kb",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "知识库",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "超过7天的草稿 0 条"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "常用知识与全局搜索"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "F42未提交中文捕获"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "断连问题排查"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "SSE断连重试"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/kb/a4222222-2222-4222-8222-222222222222",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长标题长长",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 15,
+          "tag": "A",
+          "text": "← 返回列表"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/ledger",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "AI 台账",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "设置",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "导入与导出"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "成员与邀请"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "回收站与空间维护"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "操作审计"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/transfers",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "导入与导出",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/maintenance",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "回收站与空间维护",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/team",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "成员与邀请",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/settings/audit",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "操作审计",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "返回设置"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/offline",
+      "width": 1440,
+      "clientWidth": 1425,
+      "h1": "本机草稿与待同步",
+      "scrollWidth": 1425,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/search",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "全局搜索",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "超期草稿 0 条"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "SSE断连重试"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "path": "/missing-f42",
+      "width": 1440,
+      "clientWidth": 1440,
+      "h1": "404 · 页面不存在",
+      "scrollWidth": 1440,
+      "small": [
+        {
+          "height": 36,
+          "tag": "A",
+          "text": "搜索Ctrl K"
+        },
+        {
+          "height": 22.390625,
+          "tag": "A",
+          "text": "本机草稿与待同步"
+        },
+        {
+          "height": 18,
+          "tag": "A",
+          "text": "回到今日聚焦"
+        }
+      ],
+      "theme": "dark",
+      "passed": true
+    }
+  ]
+}

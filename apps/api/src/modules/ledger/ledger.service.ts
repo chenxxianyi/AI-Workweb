@@ -9,7 +9,7 @@ import type { PrismaClient } from '../../generated/prisma/client.js';
 import { ProjectService } from '../projects/project.service.js';
 
 /**
- * 开发日志（F17）。
+ * AI使用台账（F26）。独立开发日志由 LogsModule 实现。
  *
  * - 作者永远是登录用户，请求体里出现 `authorId` 会被 strict schema 拒绝（不可伪造）；
  * - 创建需要 Idempotency-Key：同一操作重试只保存一条，不同操作（不同键）即便内容相同也各自保留；
@@ -247,7 +247,7 @@ export class LedgerService {
     const record = await this.db.ledgerRecord.findFirst({
       where: { id: recordId, workspaceId, deletedAt: null },
     });
-    if (record === null) throw new ApiException('NOT_FOUND', '日志记录不存在');
+    if (record === null) throw new ApiException('NOT_FOUND', '台账记录不存在');
     return toView(record);
   }
 
@@ -364,11 +364,11 @@ export class LedgerService {
     input: Partial<LedgerInput>,
   ): Promise<LedgerView> {
     const expected = requireIfMatch(ifMatch);
-    if (input.recordDate !== undefined || input.tool !== undefined || input.scene !== undefined) {
+    {
       const current = await this.db.ledgerRecord.findFirst({
         where: { id: recordId, workspaceId, deletedAt: null },
       });
-      if (current === null) throw new ApiException('NOT_FOUND', '日志记录不存在');
+      if (current === null) throw new ApiException('NOT_FOUND', '台账记录不存在');
       await this.assertInput(workspaceId, {
         recordDate: input.recordDate ?? current.recordDate.toISOString().slice(0, 10),
         projectId: input.projectId === undefined ? current.projectId : input.projectId,
@@ -387,7 +387,7 @@ export class LedgerService {
       const current = await client.ledgerRecord.findFirst({
         where: { id: recordId, workspaceId, deletedAt: null },
       });
-      if (current === null) throw new ApiException('NOT_FOUND', '日志记录不存在');
+      if (current === null) throw new ApiException('NOT_FOUND', '台账记录不存在');
       if (current.version !== expected) {
         throw new ApiException('PRECONDITION_FAILED', '该记录已被其他设备修改', { currentVersion: current.version });
       }
@@ -437,14 +437,15 @@ export class LedgerService {
       const current = await client.ledgerRecord.findFirst({
         where: { id: recordId, workspaceId, deletedAt: null },
       });
-      if (current === null) throw new ApiException('NOT_FOUND', '日志记录不存在');
+      if (current === null) throw new ApiException('NOT_FOUND', '台账记录不存在');
       if (current.version !== expected) {
         throw new ApiException('PRECONDITION_FAILED', '该记录已被其他设备修改', { currentVersion: current.version });
       }
-      await client.ledgerRecord.update({
-        where: { id: recordId },
+      const removed = await client.ledgerRecord.updateMany({
+        where: { id: recordId, workspaceId, version: expected, deletedAt: null },
         data: { deletedAt: new Date(), version: { increment: 1 } },
       });
+      if (removed.count !== 1) throw new ApiException('PRECONDITION_FAILED', '记录已被其他设备修改');
       await client.auditEvent.create({
         data: {
           workspaceId,

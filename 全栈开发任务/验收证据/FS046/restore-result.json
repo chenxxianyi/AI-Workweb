@@ -1,0 +1,14 @@
+{
+  "checks": 14,
+  "backup": "1793850227696-363fa279",
+  "target": "aiwb_restore_1793850227910_test",
+  "rtoMs": 382,
+  "rpoMs": 6304,
+  "tables": 24,
+  "rows": {
+    "revisions": 2,
+    "usage": 2,
+    "tasks": 2,
+    "ledger": 2
+  }
+}

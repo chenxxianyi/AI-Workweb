@@ -14,5 +14,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
  * 业务日的“空间时区”语义在应用层显式计算（`@aiwb/domain` 的 businessDate），不受此设置影响。
  */
 export function createPrismaAdapter(connectionString: string): PrismaPg {
-  return new PrismaPg({ connectionString, options: '-c timezone=UTC' });
+  return new PrismaPg({
+    connectionString,
+    options: '-c timezone=UTC',
+    max: 10,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+  });
 }

@@ -1,0 +1,20 @@
+{
+  "profile": "production",
+  "window": "30min",
+  "startedAt": "2026-11-05T04:25:00.091Z",
+  "samples": 31,
+  "failedSamples": 0,
+  "alertSamples": 0,
+  "maxGapMs": 60150,
+  "lastAt": "2026-11-05T04:55:01.643Z",
+  "elapsedMs": 1801552,
+  "thirtyMinutes": {
+    "elapsed": true,
+    "coverage": true
+  },
+  "twentyFourHours": {
+    "elapsed": false,
+    "coverage": false
+  },
+  "result": "passed"
+}

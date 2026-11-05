@@ -24,7 +24,10 @@ if (databaseUrl === undefined) {
   process.exit(1);
 }
 const databaseName = new URL(databaseUrl).pathname.replace(/^\//, '');
-if (!databaseName.endsWith('_test')) {
+if (
+  !databaseName.endsWith('_test') ||
+  !['127.0.0.1', 'localhost'].includes(new URL(databaseUrl).hostname)
+) {
   console.error(`拒绝在非测试库上运行：${databaseName}`);
   process.exit(1);
 }
@@ -63,7 +66,9 @@ function applyCookies(jar: Jar, setCookies: string[]): void {
 
 function cookieHeader(jar: Jar): string | undefined {
   const entries = Object.entries(jar);
-  return entries.length === 0 ? undefined : entries.map(([name, value]) => `${name}=${value}`).join('; ');
+  return entries.length === 0
+    ? undefined
+    : entries.map(([name, value]) => `${name}=${value}`).join('; ');
 }
 
 const app: INestApplication = await NestFactory.create(AppModule, { logger: ['error'] });
@@ -77,7 +82,10 @@ function call(
   path: string,
   options: { body?: unknown; jar?: Jar; csrf?: string; headers?: Record<string, string> } = {},
 ): Promise<Res> {
-  const headers: Record<string, string> = { 'content-type': 'application/json', ...(options.headers ?? {}) };
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    ...(options.headers ?? {}),
+  };
   const cookie = options.jar === undefined ? undefined : cookieHeader(options.jar);
   if (cookie !== undefined) headers['cookie'] = cookie;
   if (options.csrf !== undefined) headers['x-csrf-token'] = options.csrf;
@@ -116,7 +124,11 @@ await prisma.$executeRawUnsafe(
 
 const OWNER_EMAIL = 'dash-owner@authtest.local';
 const OWNER_PASSWORD = 'Workbench-Theta-Dash-42';
-const boot = await bootstrapOwner(prisma, { email: OWNER_EMAIL, displayName: '聚合 Owner', password: OWNER_PASSWORD });
+const boot = await bootstrapOwner(prisma, {
+  email: OWNER_EMAIL,
+  displayName: '聚合 Owner',
+  password: OWNER_PASSWORD,
+});
 check('准备：Owner 与个人空间创建成功', boot.created === true);
 const spaceId = boot.created ? boot.workspaceId : '';
 const ownerId = boot.created ? boot.userId : '';
@@ -129,7 +141,9 @@ const viewer = await prisma.user.create({
     passwordHash: await hashPassword('Workbench-Iota-Viewer-42'),
   },
 });
-await prisma.workspaceMember.create({ data: { workspaceId: spaceId, userId: viewer.id, role: 'viewer' } });
+await prisma.workspaceMember.create({
+  data: { workspaceId: spaceId, userId: viewer.id, role: 'viewer' },
+});
 
 const owner = await login(OWNER_EMAIL, OWNER_PASSWORD);
 const viewerSession = await login('dash-viewer@authtest.local', 'Workbench-Iota-Viewer-42');
@@ -146,9 +160,15 @@ const project = await prisma.project.create({
 
 const taskBase = { workspaceId: spaceId, createdBy: ownerId, projectId: project.id };
 
-const overdue1 = await prisma.task.create({ data: { ...taskBase, title: '逾期1天', dueDate: toUtc(yesterday) } });
-const overdue5 = await prisma.task.create({ data: { ...taskBase, title: '逾期5天', dueDate: toUtc(addDays(today, -5)) } });
-const dueToday = await prisma.task.create({ data: { ...taskBase, title: '今日到期', dueDate: toUtc(today) } });
+const overdue1 = await prisma.task.create({
+  data: { ...taskBase, title: '逾期1天', dueDate: toUtc(yesterday) },
+});
+const overdue5 = await prisma.task.create({
+  data: { ...taskBase, title: '逾期5天', dueDate: toUtc(addDays(today, -5)) },
+});
+const dueToday = await prisma.task.create({
+  data: { ...taskBase, title: '今日到期', dueDate: toUtc(today) },
+});
 const doneYesterday = await prisma.task.create({
   data: {
     ...taskBase,
@@ -161,8 +181,12 @@ const doneYesterday = await prisma.task.create({
 await prisma.task.create({
   data: { ...taskBase, title: '今日已完成', status: 'done', doneAt: now, dueDate: toUtc(today) },
 });
-const stalled4d = await prisma.task.create({ data: { ...taskBase, title: '停滞4天', status: 'doing' } });
-const stalledAlmost = await prisma.task.create({ data: { ...taskBase, title: '停滞未满3天', status: 'doing' } });
+const stalled4d = await prisma.task.create({
+  data: { ...taskBase, title: '停滞4天', status: 'doing' },
+});
+const stalledAlmost = await prisma.task.create({
+  data: { ...taskBase, title: '停滞未满3天', status: 'doing' },
+});
 const deletedOverdue = await prisma.task.create({
   data: { ...taskBase, title: '已删除逾期', dueDate: toUtc(yesterday), deletedAt: new Date() },
 });
@@ -238,38 +262,85 @@ const data = response.json['data'] as
   | undefined;
 
 check('今日接口返回 200', response.status === 200);
-check('业务日按空间时区计算', data?.businessDate === businessDate(new Date(), timezone) && data?.timezone === timezone);
+check(
+  '业务日按空间时区计算',
+  data?.businessDate === businessDate(new Date(), timezone) && data?.timezone === timezone,
+);
 
 const counts = data?.counts ?? {};
-check('逾期阈值 >0 天：只算 2 条（今日到期不算）', counts['overdueTasks'] === 2, `实际 ${counts['overdueTasks']}`);
-check('停滞阈值 >3 天：只算 1 条（3 天未满不算）', counts['stalledTasks'] === 1, `实际 ${counts['stalledTasks']}`);
+check(
+  '逾期阈值 >0 天：只算 2 条（今日到期不算）',
+  counts['overdueTasks'] === 2,
+  `实际 ${counts['overdueTasks']}`,
+);
+check(
+  '停滞阈值 >3 天：只算 1 条（3 天未满不算）',
+  counts['stalledTasks'] === 1,
+  `实际 ${counts['stalledTasks']}`,
+);
 check('草稿超期 >7 天：只算 1 条', counts['staleDrafts'] === 1, `实际 ${counts['staleDrafts']}`);
 check('今日到期任务 1 条', counts['todayTasks'] === 1, `实际 ${counts['todayTasks']}`);
-check('昨日未完成 1 条', counts['yesterdayIncomplete'] === 1, `实际 ${counts['yesterdayIncomplete']}`);
+check(
+  '昨日未完成 1 条',
+  counts['yesterdayIncomplete'] === 1,
+  `实际 ${counts['yesterdayIncomplete']}`,
+);
 check('今日完成 1 条', counts['doneToday'] === 1, `实际 ${counts['doneToday']}`);
-check('草稿不计入任务总数（openTasks=5）', counts['openTasks'] === 5, `实际 ${counts['openTasks']}`);
+check(
+  '草稿不计入任务总数（openTasks=5）',
+  counts['openTasks'] === 5,
+  `实际 ${counts['openTasks']}`,
+);
 
 const overdueList = data?.urgent?.overdue ?? [];
-check('紧急-逾期列表按日期升序且天数正确', overdueList.length === 2 && overdueList[0]?.overdueDays === 5 && overdueList[1]?.overdueDays === 1);
-check('逾期列表不含已完成/已删除/今日到期', !overdueList.some((task) => task.title.includes('已完成') || task.title.includes('删除') || task.title === '今日到期'));
+check(
+  '紧急-逾期列表按日期升序且天数正确',
+  overdueList.length === 2 &&
+    overdueList[0]?.overdueDays === 5 &&
+    overdueList[1]?.overdueDays === 1,
+);
+check(
+  '逾期列表不含已完成/已删除/今日到期',
+  !overdueList.some(
+    (task) =>
+      task.title.includes('已完成') || task.title.includes('删除') || task.title === '今日到期',
+  ),
+);
 
 const stalledList = data?.urgent?.stalled ?? [];
 check(
   '紧急-停滞列表只有 1 条且天数 ≥4',
   stalledList.length === 1 && (stalledList[0]?.stalledDays ?? 0) >= 4,
-  'list=' + JSON.stringify(stalledList.map((task) => ({ title: task.title, stalledDays: task.stalledDays, status: task.status }))),
+  'list=' +
+    JSON.stringify(
+      stalledList.map((task) => ({
+        title: task.title,
+        stalledDays: task.stalledDays,
+        status: task.status,
+      })),
+    ),
 );
 
 const draftList = data?.urgent?.staleDrafts ?? [];
-check('紧急-草稿列表只有 1 条且年龄 ≥8', draftList.length === 1 && (draftList[0]?.ageDays ?? 0) >= 8);
-check('草稿列表不含已验证/已删除', !draftList.some((entry) => entry.title.includes('已验证') || entry.title.includes('删除')));
+check(
+  '紧急-草稿列表只有 1 条且年龄 ≥8',
+  draftList.length === 1 && (draftList[0]?.ageDays ?? 0) >= 8,
+);
+check(
+  '草稿列表不含已验证/已删除',
+  !draftList.some((entry) => entry.title.includes('已验证') || entry.title.includes('删除')),
+);
 
 const allIds = [
   ...overdueList.map((task) => task.id),
   ...stalledList.map((task) => task.id),
   ...draftList.map((entry) => entry.id),
 ];
-check('紧急项无重复计数', new Set(allIds).size === allIds.length && data?.urgentCount === new Set(allIds).size, `urgentCount=${data?.urgentCount}`);
+check(
+  '紧急项无重复计数',
+  new Set(allIds).size === allIds.length && data?.urgentCount === new Set(allIds).size,
+  `urgentCount=${data?.urgentCount}`,
+);
 
 // ---------------------------------------------------------------- 时区独立性
 const spoofed = await call('GET', path, {
@@ -278,14 +349,19 @@ const spoofed = await call('GET', path, {
 });
 check(
   '客户端时区头不影响共享业务日',
-  (spoofed.json['data'] as { businessDate?: string } | undefined)?.businessDate === data?.businessDate,
+  (spoofed.json['data'] as { businessDate?: string } | undefined)?.businessDate ===
+    data?.businessDate,
 );
 
 const kiritimati = await prisma.workspace.create({
   data: { name: '基里巴斯空间', timezone: 'Pacific/Kiritimati', createdBy: ownerId },
 });
-await prisma.workspaceMember.create({ data: { workspaceId: kiritimati.id, userId: ownerId, role: 'owner' } });
-const kiritimatiRes = await call('GET', `/workspaces/${kiritimati.id}/dashboard/today`, { jar: owner.jar });
+await prisma.workspaceMember.create({
+  data: { workspaceId: kiritimati.id, userId: ownerId, role: 'owner' },
+});
+const kiritimatiRes = await call('GET', `/workspaces/${kiritimati.id}/dashboard/today`, {
+  jar: owner.jar,
+});
 check(
   '不同时区的空间各自计算业务日',
   (kiritimatiRes.json['data'] as { businessDate?: string } | undefined)?.businessDate ===
@@ -301,7 +377,10 @@ check(
     businessDate(new Date(), 'Pacific/Kiritimati'),
 );
 await prisma.workspace.update({ where: { id: spaceId }, data: { timezone } });
-check('恢复时区后业务日恢复', (changedTz.json['data'] as { businessDate?: string } | undefined)?.businessDate === today);
+check(
+  '恢复时区后业务日恢复',
+  (changedTz.json['data'] as { businessDate?: string } | undefined)?.businessDate === today,
+);
 
 // ---------------------------------------------------------------- 权限与隔离
 const viewerRead = await call('GET', path, { jar: viewerSession.jar });
@@ -310,7 +389,9 @@ check('Viewer 可读取今日聚合', viewerRead.status === 200);
 const otherSpace = await prisma.workspace.create({
   data: { name: '未加入空间', timezone, createdBy: ownerId },
 });
-const crossSpace = await call('GET', `/workspaces/${otherSpace.id}/dashboard/today`, { jar: viewerSession.jar });
+const crossSpace = await call('GET', `/workspaces/${otherSpace.id}/dashboard/today`, {
+  jar: viewerSession.jar,
+});
 check('未加入的空间 → 404', crossSpace.status === 404);
 
 // ---------------------------------------------------------------- 清理
@@ -322,7 +403,11 @@ await prisma.$disconnect();
 
 const failed = results.filter((item) => !item.ok);
 for (const item of results) {
-  console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`);
+  console.log(
+    `${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`,
+  );
 }
-console.log(`\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`);
+console.log(
+  `\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`,
+);
 process.exitCode = failed.length === 0 ? 0 : 1;

@@ -18,10 +18,11 @@ const QUOTE = /^>\s?(.*)$/;
 
 export function isSafeHref(href: string): boolean {
   const trimmed = href.trim();
-  if (trimmed === '') return false;
+  if (trimmed === '' || [...trimmed].some(c=>c.charCodeAt(0)<=32||c.charCodeAt(0)===127||c==='\\')) return false;
   if (trimmed.startsWith('#')) return true;
-  if (trimmed.startsWith('/')) return true;
-  return /^https?:\/\//i.test(trimmed);
+  if (trimmed.startsWith('/')) return !trimmed.startsWith('//');
+  if(!/^https?:\/\//i.test(trimmed))return false;
+  try{const url=new URL(trimmed);return url.hostname!==''&&!url.username&&!url.password;}catch{return false;}
 }
 
 /** 行内解析：`code`、**bold**、*italic*、[text](url) */

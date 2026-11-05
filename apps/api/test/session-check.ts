@@ -26,7 +26,10 @@ if (databaseUrl === undefined) {
   process.exit(1);
 }
 const databaseName = new URL(databaseUrl).pathname.replace(/^\//, '');
-if (!databaseName.endsWith('_test')) {
+if (
+  !databaseName.endsWith('_test') ||
+  !['127.0.0.1', 'localhost'].includes(new URL(databaseUrl).hostname)
+) {
   console.error(`拒绝在非测试库上运行：${databaseName}`);
   process.exit(1);
 }
@@ -68,7 +71,9 @@ function applyCookies(jar: Jar, setCookies: string[]): void {
 
 function cookieHeader(jar: Jar): string | undefined {
   const entries = Object.entries(jar);
-  return entries.length === 0 ? undefined : entries.map(([name, value]) => `${name}=${value}`).join('; ');
+  return entries.length === 0
+    ? undefined
+    : entries.map(([name, value]) => `${name}=${value}`).join('; ');
 }
 
 async function createApp(): Promise<{ app: INestApplication; base: string }> {
@@ -83,9 +88,18 @@ function call(
   base: string,
   method: string,
   path: string,
-  options: { body?: unknown; jar?: Jar; csrf?: string; origin?: string; headers?: Record<string, string> } = {},
+  options: {
+    body?: unknown;
+    jar?: Jar;
+    csrf?: string;
+    origin?: string;
+    headers?: Record<string, string>;
+  } = {},
 ): Promise<Res> {
-  const headers: Record<string, string> = { 'content-type': 'application/json', ...(options.headers ?? {}) };
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    ...(options.headers ?? {}),
+  };
   const cookie = options.jar === undefined ? undefined : cookieHeader(options.jar);
   if (cookie !== undefined) headers['cookie'] = cookie;
   if (options.csrf !== undefined) headers['x-csrf-token'] = options.csrf;
@@ -119,7 +133,11 @@ await prisma.$executeRawUnsafe(
 
 const EMAIL = 'session-owner@authtest.local';
 const PASSWORD = 'Workbench-Session-Pass-42';
-const boot = await bootstrapOwner(prisma, { email: EMAIL, displayName: '会话测试 Owner', password: PASSWORD });
+const boot = await bootstrapOwner(prisma, {
+  email: EMAIL,
+  displayName: '会话测试 Owner',
+  password: PASSWORD,
+});
 check('准备：Owner 创建成功', boot.created === true);
 
 const secondUserEmail = 'session-second@authtest.local';
@@ -136,18 +154,27 @@ const jar: Jar = {};
 
 // ---------------------------------------------------------------- CSRF 获取
 const csrfRes = await call(base, 'GET', '/auth/csrf');
-const csrfTokenFromBody = (csrfRes.json['data'] as { csrfToken?: string } | undefined)?.csrfToken ?? '';
+const csrfTokenFromBody =
+  (csrfRes.json['data'] as { csrfToken?: string } | undefined)?.csrfToken ?? '';
 applyCookies(jar, csrfRes.setCookies);
 check('GET /auth/csrf 返回令牌并下发 Cookie', csrfRes.status === 200 && csrfTokenFromBody !== '');
 check('CSRF Cookie 与响应体令牌一致', jar['sfs_csrf'] === csrfTokenFromBody);
 check(
   'CSRF Cookie 非 HttpOnly（前端需可读）',
-  csrfRes.setCookies.some((header) => header.startsWith('sfs_csrf=') && !header.includes('HttpOnly')),
+  csrfRes.setCookies.some(
+    (header) => header.startsWith('sfs_csrf=') && !header.includes('HttpOnly'),
+  ),
 );
 
 // ---------------------------------------------------------------- 登录失败路径
-const noCsrf = await call(base, 'POST', '/auth/login', { body: { email: EMAIL, password: PASSWORD }, jar });
-check('登录缺 CSRF 头 → 403 CSRF_INVALID', noCsrf.status === 403 && errorCode(noCsrf) === 'CSRF_INVALID');
+const noCsrf = await call(base, 'POST', '/auth/login', {
+  body: { email: EMAIL, password: PASSWORD },
+  jar,
+});
+check(
+  '登录缺 CSRF 头 → 403 CSRF_INVALID',
+  noCsrf.status === 403 && errorCode(noCsrf) === 'CSRF_INVALID',
+);
 
 const badOrigin = await call(base, 'POST', '/auth/login', {
   body: { email: EMAIL, password: PASSWORD },
@@ -180,7 +207,10 @@ check(
     unknownUser.status === 401 &&
     JSON.stringify(wrongPassword.json['error']) === JSON.stringify(unknownUser.json['error']),
 );
-check('登录失败不下发会话 Cookie', !wrongPassword.setCookies.some((header) => header.startsWith('sfs_session=')));
+check(
+  '登录失败不下发会话 Cookie',
+  !wrongPassword.setCookies.some((header) => header.startsWith('sfs_session=')),
+);
 
 // ---------------------------------------------------------------- 登录成功
 const login = await call(base, 'POST', '/auth/login', {
@@ -192,7 +222,13 @@ const login = await call(base, 'POST', '/auth/login', {
 applyCookies(jar, login.setCookies);
 const loginData = login.json['data'] as
   | {
-      user?: { id?: string; email?: string; displayName?: string; passwordHash?: string; role?: string };
+      user?: {
+        id?: string;
+        email?: string;
+        displayName?: string;
+        passwordHash?: string;
+        role?: string;
+      };
       memberships?: { role?: string; workspaceId?: string }[];
       csrfToken?: string;
       sessionExpiresAt?: string;
@@ -200,16 +236,23 @@ const loginData = login.json['data'] as
   | undefined;
 
 check('登录成功返回 200', login.status === 200);
-check('登录响应含 user / memberships / csrfToken / sessionExpiresAt', 
+check(
+  '登录响应含 user / memberships / csrfToken / sessionExpiresAt',
   loginData?.user?.email === EMAIL &&
     Array.isArray(loginData?.memberships) &&
-    (loginData?.memberships?.[0]?.role === 'owner') &&
+    loginData?.memberships?.[0]?.role === 'owner' &&
     typeof loginData?.csrfToken === 'string' &&
-    typeof loginData?.sessionExpiresAt === 'string');
-check('登录响应不含密码哈希或角色字段', 
-  !JSON.stringify(loginData?.user).includes('argon2') && loginData?.user?.passwordHash === undefined && loginData?.user?.role === undefined);
+    typeof loginData?.sessionExpiresAt === 'string',
+);
+check(
+  '登录响应不含密码哈希或角色字段',
+  !JSON.stringify(loginData?.user).includes('argon2') &&
+    loginData?.user?.passwordHash === undefined &&
+    loginData?.user?.role === undefined,
+);
 
-const sessionCookieHeader = login.setCookies.find((header) => header.startsWith('sfs_session=')) ?? '';
+const sessionCookieHeader =
+  login.setCookies.find((header) => header.startsWith('sfs_session=')) ?? '';
 check(
   '会话 Cookie 带 HttpOnly 与 SameSite=Lax，开发环境不带 Secure',
   sessionCookieHeader.includes('HttpOnly') &&
@@ -222,26 +265,43 @@ check(
     jar['sfs_session'] !== undefined &&
     jar['sfs_session'] !== PASSWORD,
 );
-check('登录后 CSRF 令牌已轮换', jar['sfs_csrf'] !== undefined && jar['sfs_csrf'] !== csrfTokenFromBody);
+check(
+  '登录后 CSRF 令牌已轮换',
+  jar['sfs_csrf'] !== undefined && jar['sfs_csrf'] !== csrfTokenFromBody,
+);
 
 const sessionCsrf = jar['sfs_csrf'] ?? '';
 
 // ---------------------------------------------------------------- me / 会话列表
 const meNoCookie = await call(base, 'GET', '/auth/me', {});
-check('未登录访问 /auth/me → 401 UNAUTHENTICATED', meNoCookie.status === 401 && errorCode(meNoCookie) === 'UNAUTHENTICATED');
+check(
+  '未登录访问 /auth/me → 401 UNAUTHENTICATED',
+  meNoCookie.status === 401 && errorCode(meNoCookie) === 'UNAUTHENTICATED',
+);
 
 const me = await call(base, 'GET', '/auth/me', { jar });
 const meData = me.json['data'] as
-  | { user?: { email?: string }; memberships?: { role?: string }[]; preferences?: { theme?: string } }
+  | {
+      user?: { email?: string };
+      memberships?: { role?: string }[];
+      preferences?: { theme?: string };
+    }
   | undefined;
-check('已登录 /auth/me 返回用户与空间', 
-  me.status === 200 && meData?.user?.email === EMAIL && meData?.memberships?.[0]?.role === 'owner' && meData?.preferences?.theme === 'system');
+check(
+  '已登录 /auth/me 返回用户与空间',
+  me.status === 200 &&
+    meData?.user?.email === EMAIL &&
+    meData?.memberships?.[0]?.role === 'owner' &&
+    meData?.preferences?.theme === 'system',
+);
 
 const sessions1 = await call(base, 'GET', '/auth/sessions', { jar });
-const sessions1Data = sessions1.json['data'] as { sessions?: { id: string; current: boolean }[] } | undefined;
+const sessions1Data = sessions1.json['data'] as
+  { sessions?: { id: string; current: boolean }[] } | undefined;
 check(
   '会话列表含当前会话',
-  sessions1.status === 200 && (sessions1Data?.sessions ?? []).filter((item) => item.current).length === 1,
+  sessions1.status === 200 &&
+    (sessions1Data?.sessions ?? []).filter((item) => item.current).length === 1,
 );
 
 // ---------------------------------------------------------------- 改密（CSRF 与当前会话保留）
@@ -249,7 +309,10 @@ const changeNoCsrf = await call(base, 'PATCH', '/auth/password', {
   body: { currentPassword: PASSWORD, newPassword: 'Workbench-Updated-Pass-42' },
   jar,
 });
-check('改密缺 CSRF → 403', changeNoCsrf.status === 403 && errorCode(changeNoCsrf) === 'CSRF_INVALID');
+check(
+  '改密缺 CSRF → 403',
+  changeNoCsrf.status === 403 && errorCode(changeNoCsrf) === 'CSRF_INVALID',
+);
 
 const changeWrongCsrf = await call(base, 'PATCH', '/auth/password', {
   body: { currentPassword: PASSWORD, newPassword: 'Workbench-Updated-Pass-42' },
@@ -281,30 +344,45 @@ const newPasswordLogin = await call(base, 'POST', '/auth/login', {
 });
 const secondJar: Jar = {};
 applyCookies(secondJar, newPasswordLogin.setCookies);
-check('新密码可登录（第二设备）', newPasswordLogin.status === 200 && secondJar['sfs_session'] !== undefined);
+check(
+  '新密码可登录（第二设备）',
+  newPasswordLogin.status === 200 && secondJar['sfs_session'] !== undefined,
+);
 
 const sessions2 = await call(base, 'GET', '/auth/sessions', { jar });
-const sessions2Data = sessions2.json['data'] as { sessions?: { id: string; current: boolean }[] } | undefined;
+const sessions2Data = sessions2.json['data'] as
+  { sessions?: { id: string; current: boolean }[] } | undefined;
 check(
   '两台设备各自有会话',
-  (sessions2Data?.sessions ?? []).length === 2 && (sessions2Data?.sessions ?? []).filter((item) => item.current).length === 1,
+  (sessions2Data?.sessions ?? []).length === 2 &&
+    (sessions2Data?.sessions ?? []).filter((item) => item.current).length === 1,
 );
 
 // ---------------------------------------------------------------- 吊销其他会话
 const otherSession = (sessions2Data?.sessions ?? []).find((item) => !item.current);
-const revokedOther = await call(base, 'DELETE', `/auth/sessions/${otherSession?.id ?? '00000000-0000-0000-0000-000000000000'}`, {
-  jar,
-  csrf: sessionCsrf,
-});
+const revokedOther = await call(
+  base,
+  'DELETE',
+  `/auth/sessions/${otherSession?.id ?? '00000000-0000-0000-0000-000000000000'}`,
+  {
+    jar,
+    csrf: sessionCsrf,
+  },
+);
 check('吊销其他会话成功', revokedOther.status === 200);
 
 const secondDeviceAfterRevoke = await call(base, 'GET', '/auth/me', { jar: secondJar });
 check('被吊销的会话立即失效（401）', secondDeviceAfterRevoke.status === 401);
 
-const revokeUnknown = await call(base, 'DELETE', '/auth/sessions/11111111-1111-1111-1111-111111111111', {
-  jar,
-  csrf: sessionCsrf,
-});
+const revokeUnknown = await call(
+  base,
+  'DELETE',
+  '/auth/sessions/11111111-1111-1111-1111-111111111111',
+  {
+    jar,
+    csrf: sessionCsrf,
+  },
+);
 check('吊销不存在的会话 → 404', revokeUnknown.status === 404);
 
 // ---------------------------------------------------------------- 过期 / 吊销 / 重启
@@ -330,18 +408,32 @@ async function insertSession(options: {
 
 const expiredToken = await insertSession({ idleExpiresAt: new Date(Date.now() - 60_000) });
 const expiredRes = await call(base, 'GET', '/auth/me', { jar: { sfs_session: expiredToken } });
-check('空闲过期会话 → 401 SESSION_EXPIRED', expiredRes.status === 401 && errorCode(expiredRes) === 'SESSION_EXPIRED');
+check(
+  '空闲过期会话 → 401 SESSION_EXPIRED',
+  expiredRes.status === 401 && errorCode(expiredRes) === 'SESSION_EXPIRED',
+);
 
-const revokedToken = await insertSession({ idleExpiresAt: new Date(Date.now() + 60_000), revokedAt: new Date() });
+const revokedToken = await insertSession({
+  idleExpiresAt: new Date(Date.now() + 60_000),
+  revokedAt: new Date(),
+});
 const revokedRes = await call(base, 'GET', '/auth/me', { jar: { sfs_session: revokedToken } });
-check('已吊销会话 → 401 UNAUTHENTICATED', revokedRes.status === 401 && errorCode(revokedRes) === 'UNAUTHENTICATED');
+check(
+  '已吊销会话 → 401 UNAUTHENTICATED',
+  revokedRes.status === 401 && errorCode(revokedRes) === 'UNAUTHENTICATED',
+);
 
 const absoluteExpiredToken = await insertSession({
   idleExpiresAt: new Date(Date.now() + 60_000),
   absoluteExpiresAt: new Date(Date.now() - 1_000),
 });
-const absoluteRes = await call(base, 'GET', '/auth/me', { jar: { sfs_session: absoluteExpiredToken } });
-check('绝对过期会话 → 401 SESSION_EXPIRED', absoluteRes.status === 401 && errorCode(absoluteRes) === 'SESSION_EXPIRED');
+const absoluteRes = await call(base, 'GET', '/auth/me', {
+  jar: { sfs_session: absoluteExpiredToken },
+});
+check(
+  '绝对过期会话 → 401 SESSION_EXPIRED',
+  absoluteRes.status === 401 && errorCode(absoluteRes) === 'SESSION_EXPIRED',
+);
 
 // 重启：关闭应用后用同一个 Cookie 访问新进程
 await app.close();
@@ -352,8 +444,13 @@ check('服务重启后合法会话仍有效', afterRestart.status === 200);
 // ---------------------------------------------------------------- 退出
 const logout = await call(base, 'POST', '/auth/logout', { jar, csrf: sessionCsrf });
 applyCookies(jar, logout.setCookies);
-check('退出返回 200 并清除 Cookie', 
-  logout.status === 200 && logout.setCookies.some((header) => header.startsWith('sfs_session=') && header.includes('Max-Age=0')));
+check(
+  '退出返回 200 并清除 Cookie',
+  logout.status === 200 &&
+    logout.setCookies.some(
+      (header) => header.startsWith('sfs_session=') && header.includes('Max-Age=0'),
+    ),
+);
 const afterLogout = await call(base, 'GET', '/auth/me', { jar });
 check('退出后会话失效（401）', afterLogout.status === 401);
 
@@ -369,10 +466,13 @@ const secureLogin = await call(secureApp.base, 'POST', '/auth/login', {
   csrf: secureJar['sfs_csrf'],
 });
 applyCookies(secureJar, secureLogin.setCookies);
-const secureSessionHeader = secureLogin.setCookies.find((header) => header.startsWith('sfs_session=')) ?? '';
+const secureSessionHeader =
+  secureLogin.setCookies.find((header) => header.startsWith('sfs_session=')) ?? '';
 check(
   'COOKIE_SECURE=true 时会话 Cookie 带 Secure + HttpOnly',
-  secureLogin.status === 200 && secureSessionHeader.includes('Secure') && secureSessionHeader.includes('HttpOnly'),
+  secureLogin.status === 200 &&
+    secureSessionHeader.includes('Secure') &&
+    secureSessionHeader.includes('HttpOnly'),
 );
 await secureApp.app.close();
 process.env['COOKIE_SECURE'] = 'false';
@@ -403,10 +503,13 @@ const locked = await call(base, 'POST', '/auth/login', {
   jar: lockJar,
   csrf: lockToken,
 });
-const lockedError = locked.json['error'] as { code?: string; details?: { retryAfterSeconds?: number } } | undefined;
+const lockedError = locked.json['error'] as
+  { code?: string; details?: { retryAfterSeconds?: number } } | undefined;
 check(
   '连续 5 次失败后即使密码正确也返回 429（含 retryAfterSeconds）',
-  locked.status === 429 && lockedError?.code === 'RATE_LIMITED' && (lockedError?.details?.retryAfterSeconds ?? 0) > 0,
+  locked.status === 429 &&
+    lockedError?.code === 'RATE_LIMITED' &&
+    (lockedError?.details?.retryAfterSeconds ?? 0) > 0,
 );
 
 await app.close();
@@ -417,7 +520,11 @@ await prisma.$disconnect();
 
 const failed = results.filter((item) => !item.ok);
 for (const item of results) {
-  console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`);
+  console.log(
+    `${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`,
+  );
 }
-console.log(`\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`);
+console.log(
+  `\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`,
+);
 process.exitCode = failed.length === 0 ? 0 : 1;

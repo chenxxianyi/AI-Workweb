@@ -24,7 +24,10 @@ if (databaseUrl === undefined) {
   process.exit(1);
 }
 const databaseName = new URL(databaseUrl).pathname.replace(/^\//, '');
-if (!databaseName.endsWith('_test')) {
+if (
+  !databaseName.endsWith('_test') ||
+  !['127.0.0.1', 'localhost'].includes(new URL(databaseUrl).hostname)
+) {
   console.error(`拒绝在非测试库上运行：${databaseName}`);
   process.exit(1);
 }
@@ -63,7 +66,11 @@ async function reset(): Promise<void> {
 await prisma.$executeRawUnsafe(
   'TRUNCATE TABLE users, workspaces, sessions, account_recovery_tokens, audit_events RESTART IDENTITY CASCADE',
 );
-const boot = await bootstrapOwner(prisma, { email: EMAIL, displayName: 'HTTP 恢复测试', password: PASSWORD });
+const boot = await bootstrapOwner(prisma, {
+  email: EMAIL,
+  displayName: 'HTTP 恢复测试',
+  password: PASSWORD,
+});
 check('准备：测试用户创建成功', boot.created === true);
 const issued = await issueRecoveryToken(prisma, { email: EMAIL });
 check('准备：恢复令牌签发成功', issued !== null);
@@ -74,30 +81,52 @@ await app.listen(0, '127.0.0.1');
 const address = app.getHttpServer().address() as { port: number };
 const base = `http://127.0.0.1:${address.port}/api/v1`;
 
-async function post(path: string, body: unknown): Promise<{ status: number; json: Record<string, unknown> }> {
+async function post(
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: Record<string, unknown> }> {
   const response = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   const text = await response.text();
-  return { status: response.status, json: text === '' ? {} : (JSON.parse(text) as Record<string, unknown>) };
+  return {
+    status: response.status,
+    json: text === '' ? {} : (JSON.parse(text) as Record<string, unknown>),
+  };
 }
 
 const token = issued?.token ?? '';
 
 // 1) 字段校验：密码过短 → 422
 const weak = await post('/auth/recovery/complete', { token, newPassword: 'short' });
-check('密码过短返回 422 VALIDATION_FAILED', weak.status === 422 && (weak.json['error'] as { code?: string })?.code === 'VALIDATION_FAILED', JSON.stringify(weak));
+check(
+  '密码过短返回 422 VALIDATION_FAILED',
+  weak.status === 422 && (weak.json['error'] as { code?: string })?.code === 'VALIDATION_FAILED',
+  JSON.stringify(weak),
+);
 
 // 2) 未知字段严格拒绝
-const unknownField = await post('/auth/recovery/complete', { token, newPassword: RECOVERED, extra: 1 });
+const unknownField = await post('/auth/recovery/complete', {
+  token,
+  newPassword: RECOVERED,
+  extra: 1,
+});
 check('未知字段被拒绝（422）', unknownField.status === 422);
 
 // 3) 伪造令牌 → 401，且响应不含令牌或账号信息
-const forged = await post('/auth/recovery/complete', { token: 'Z'.repeat(43), newPassword: RECOVERED });
+const forged = await post('/auth/recovery/complete', {
+  token: 'Z'.repeat(43),
+  newPassword: RECOVERED,
+});
 const forgedText = JSON.stringify(forged.json);
-check('伪造令牌返回 401', forged.status === 401 && (forged.json['error'] as { code?: string })?.code === 'AUTH_INVALID_CREDENTIALS', JSON.stringify(forged));
+check(
+  '伪造令牌返回 401',
+  forged.status === 401 &&
+    (forged.json['error'] as { code?: string })?.code === 'AUTH_INVALID_CREDENTIALS',
+  JSON.stringify(forged),
+);
 check('错误响应不含令牌明文', !forgedText.includes('Z'.repeat(43)));
 check('错误响应不含邮箱', !forgedText.includes(EMAIL));
 
@@ -110,7 +139,10 @@ check('新密码生效', user !== null && (await verifyPassword(user.passwordHas
 check('旧密码失效', user !== null && !(await verifyPassword(user.passwordHash, PASSWORD)));
 
 // 5) 重放同一令牌 → 401
-const replay = await post('/auth/recovery/complete', { token, newPassword: 'Workbench-Http-Third-42' });
+const replay = await post('/auth/recovery/complete', {
+  token,
+  newPassword: 'Workbench-Http-Third-42',
+});
 check('同一令牌重放返回 401', replay.status === 401);
 
 // 6) 改密接口未接入会话时明确 401（不伪造已登录）
@@ -122,7 +154,10 @@ const change = await fetch(`${base}/auth/password`, {
 check('未登录改密返回 401', change.status === 401);
 
 // 7) 限流：/auth/recovery/complete 5 次/分钟（上面已用 5 次，再打 1 次应为 429）
-const limited = await post('/auth/recovery/complete', { token: 'Y'.repeat(43), newPassword: RECOVERED });
+const limited = await post('/auth/recovery/complete', {
+  token: 'Y'.repeat(43),
+  newPassword: RECOVERED,
+});
 check('超过限流返回 429', limited.status === 429, `实际 ${limited.status}`);
 
 await app.close();
@@ -131,7 +166,11 @@ await prisma.$disconnect();
 
 const failed = results.filter((item) => !item.ok);
 for (const item of results) {
-  console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`);
+  console.log(
+    `${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`,
+  );
 }
-console.log(`\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`);
+console.log(
+  `\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`,
+);
 process.exitCode = failed.length === 0 ? 0 : 1;

@@ -38,7 +38,9 @@ export class ApiError extends Error {
 
   /** 会话失效：需要重新登录并保留输入 */
   get isUnauthenticated(): boolean {
-    return this.status === 401 || this.code === 'UNAUTHENTICATED' || this.code === 'SESSION_EXPIRED';
+    return (
+      this.status === 401 || this.code === 'UNAUTHENTICATED' || this.code === 'SESSION_EXPIRED'
+    );
   }
 
   /** 版本冲突：需要进入对比面板（412/409/428） */
@@ -60,6 +62,8 @@ export class ApiError extends Error {
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
+  rawBody?: BodyInit;
+  responseType?: 'json' | 'blob';
   headers?: Record<string, string>;
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -67,6 +71,18 @@ export interface RequestOptions {
   idempotencyKey?: string;
   /** 条件写的版本号（If-Match） */
   ifMatch?: number;
+  /** 仅持久队列在重新核验身份后使用；服务器仍逐次授权。 */
+  verifiedReplay?: boolean;
+}
+export interface SnapshotPolicy {
+  userId?: string;
+  allows: (path: string) => boolean;
+  read: (path: string) => Promise<unknown | undefined>;
+  write: (path: string, data: unknown) => Promise<void>;
+  isReadOnly: () => boolean;
+  online: () => void;
+  invalidate: (status: number) => Promise<void>;
+  dispose?: () => void;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -100,6 +116,15 @@ function isErrorEnvelope(body: unknown): body is { error: ApiErrorBody; requestI
  */
 export class ApiClient {
   private csrfToken: string | undefined;
+  private snapshots: SnapshotPolicy | undefined;
+  private principalId: string | null = null;
+  setPrincipalId(userId: string | null): void {
+    this.principalId = userId;
+  }
+  setSnapshotPolicy(policy: SnapshotPolicy | undefined): void {
+    this.snapshots?.dispose?.();
+    this.snapshots = policy;
+  }
 
   constructor(
     private readonly baseUrl: string = '/api/v1',
@@ -123,6 +148,16 @@ export class ApiClient {
 
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const method = options.method ?? 'GET';
+    const snapshots = this.snapshots;
+    const principal = this.principalId;
+    const currentSnapshots = () =>
+      snapshots ??
+      (principal !== null && this.snapshots?.userId === principal ? this.snapshots : undefined);
+    if (method !== 'GET' && path.startsWith('/workspaces/') && snapshots?.isReadOnly() && !(options.verifiedReplay && /^\/workspaces\/[0-9a-f-]+\/offline-operations$/.test(path)))
+      throw new ApiError({
+        kind: 'network',
+        message: '当前使用离线只读副本，请恢复连接后保存；输入仍保留。',
+      });
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
       Accept: 'application/json',
@@ -142,7 +177,9 @@ export class ApiClient {
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const timeoutSignal = AbortSignal.timeout(timeoutMs);
     const signal =
-      options.signal === undefined ? timeoutSignal : combineSignals([options.signal, timeoutSignal]);
+      options.signal === undefined
+        ? timeoutSignal
+        : combineSignals([options.signal, timeoutSignal]);
 
     let response: Response;
     try {
@@ -152,9 +189,16 @@ export class ApiClient {
         credentials: 'same-origin',
         signal,
         ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+        ...(options.rawBody === undefined ? {} : { body: options.rawBody }),
       });
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (options.signal?.aborted) throw error;
+      const cache = currentSnapshots();
+      if (method === 'GET' && cache?.allows(path)) {
+        const stored = await cache.read(path).catch(() => undefined);
+        if (stored !== undefined) return stored as T;
+      }
+      if (error instanceof DOMException && ['AbortError', 'TimeoutError'].includes(error.name)) {
         // 调用方主动取消（如切换空间）：原样抛出，让上层忽略
         if (options.signal?.aborted === true) throw error;
         throw new ApiError({ kind: 'timeout', message: '请求超时，结果未知，请用同一幂等键重试' });
@@ -162,6 +206,7 @@ export class ApiClient {
       throw new ApiError({ kind: 'network', message: '网络不可用，请检查连接后重试' });
     }
 
+    if (response.ok && options.responseType === 'blob') return (await response.blob()) as T;
     const text = await response.text();
     let parsed: unknown = undefined;
     if (text !== '') {
@@ -173,6 +218,13 @@ export class ApiClient {
     }
 
     if (!response.ok) {
+      const cache = currentSnapshots();
+      if (method === 'GET' && response.status >= 500 && cache?.allows(path)) {
+        const stored = await cache.read(path).catch(() => undefined);
+        if (stored !== undefined) return stored as T;
+      }
+      if ([401, 403, 404].includes(response.status) && cache)
+        void cache.invalidate(response.status).catch(() => undefined);
       const requestId = response.headers.get('x-request-id') ?? undefined;
       let error: ApiError;
       if (isErrorEnvelope(parsed)) {
@@ -197,8 +249,13 @@ export class ApiClient {
       throw error;
     }
 
-    if (isEnvelope(parsed)) return parsed.data as T;
-    return parsed as T;
+    const result = isEnvelope(parsed) ? parsed.data : parsed;
+    if (method === 'GET') {
+      const cache = currentSnapshots();
+      cache?.online();
+      if (cache?.allows(path)) void cache.write(path, result).catch(() => undefined);
+    }
+    return result as T;
   }
 
   get<T>(path: string, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../providers/auth-provider';
 import { describeApiError } from '../../services/auth-api';
 import styles from './auth-pages.module.css';
+import { pendingServerLogout } from '../../offline/store';
 
 /**
  * 登录页（F11）。
@@ -11,7 +12,7 @@ import styles from './auth-pages.module.css';
  * - 登录成功后回到 `next` 指定的原路径
  */
 export function LoginPage(): React.JSX.Element {
-  const { status, login } = useAuth();
+  const { status, login, connectionUnavailable } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const next = params.get('next') ?? '/today';
@@ -50,8 +51,19 @@ export function LoginPage(): React.JSX.Element {
     <div className={styles.wrap}>
       <div className={styles.card}>
         <h1 className={styles.title}>登录</h1>
+        {pendingServerLogout() ? (
+          <p role="status">
+            已在本机退出并清理私有副本，联网后会先完成服务器退出，再允许重新登录。
+          </p>
+        ) : null}
+        {connectionUnavailable ? (
+          <p role="status">
+            服务器暂不可用，且没有可使用的本机身份视图。应用壳可离线打开，未缓存内容需恢复连接后访问。
+          </p>
+        ) : null}
         <p className={styles.hint}>
-          个人或小团队私有部署，公开注册已关闭。首次使用请由管理员在服务器执行 bootstrap 命令创建 Owner。
+          个人或小团队私有部署，公开注册已关闭。首次使用请由管理员在服务器执行 bootstrap 命令创建
+          Owner。
         </p>
 
         <form className={styles.form} onSubmit={(event) => void submit(event)} noValidate>
@@ -94,7 +106,8 @@ export function LoginPage(): React.JSX.Element {
         </form>
 
         <p className={styles.footer}>
-          忘记密码？由管理员执行 <code>pnpm --filter @aiwb/api auth:recover</code> 签发一次性恢复链接。
+          忘记密码？由管理员执行 <code>pnpm --filter @aiwb/api auth:recover</code>{' '}
+          签发一次性恢复链接。
         </p>
       </div>
     </div>

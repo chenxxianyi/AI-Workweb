@@ -31,7 +31,10 @@ if (databaseUrl === undefined) {
   process.exit(1);
 }
 const databaseName = new URL(databaseUrl).pathname.replace(/^\//, '');
-if (!databaseName.endsWith('_test')) {
+if (
+  !databaseName.endsWith('_test') ||
+  !['127.0.0.1', 'localhost'].includes(new URL(databaseUrl).hostname)
+) {
   console.error(`拒绝在非测试库上运行：${databaseName}（要求库名以 _test 结尾）`);
   process.exit(1);
 }
@@ -103,11 +106,28 @@ const cliPath = resolve(here, '../src/cli/bootstrap-owner.ts');
 const cliPassword = 'Workbench-Strong-Pass-42';
 const cliRun = spawnSync(
   process.execPath,
-  ['--import', 'tsx', cliPath, '--email', `cli@${DOMAIN}`, '--name', 'CLI 用户', '--password-stdin'],
-  { input: `${cliPassword}\n`, encoding: 'utf8', env: { ...process.env, DATABASE_URL: databaseUrl } },
+  [
+    '--import',
+    'tsx',
+    cliPath,
+    '--email',
+    `cli@${DOMAIN}`,
+    '--name',
+    'CLI 用户',
+    '--password-stdin',
+  ],
+  {
+    input: `${cliPassword}\n`,
+    encoding: 'utf8',
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+  },
 );
 
-check('CLI bootstrap 退出码 0', cliRun.status === 0, `stdout=${cliRun.stdout} stderr=${cliRun.stderr}`);
+check(
+  'CLI bootstrap 退出码 0',
+  cliRun.status === 0,
+  `stdout=${cliRun.stdout} stderr=${cliRun.stderr}`,
+);
 check('CLI 输出不含明文密码', !`${cliRun.stdout}${cliRun.stderr}`.includes(cliPassword));
 
 const cliUser = await prisma.user.findUnique({ where: { emailNormalized: `cli@${DOMAIN}` } });
@@ -147,19 +167,28 @@ const second = await bootstrapOwner(prisma, {
   displayName: '测试 Owner',
   password: ownerPassword,
 });
-check('同邮箱重复 bootstrap 不重复创建', second.created === false && second.reason === 'USER_EXISTS');
+check(
+  '同邮箱重复 bootstrap 不重复创建',
+  second.created === false && second.reason === 'USER_EXISTS',
+);
 
 const third = await bootstrapOwner(prisma, {
   email: `second@${DOMAIN}`,
   displayName: '第二人',
   password: 'Backup-Strong-Pass-42',
 });
-check('库中已有用户时拒绝创建第二个 Owner', third.created === false && third.reason === 'OTHER_USERS_EXIST');
+check(
+  '库中已有用户时拒绝创建第二个 Owner',
+  third.created === false && third.reason === 'OTHER_USERS_EXIST',
+);
 
 const userCount = await prisma.user.count({ where: { emailNormalized: { in: EMAILS } } });
 const owner = await prisma.user.findUnique({ where: { emailNormalized: `owner@${DOMAIN}` } });
 check('用户数仍为 1', userCount === 1, `实际 ${userCount}`);
-check('bootstrap 写入审计', (await prisma.auditEvent.count({ where: { action: 'account.bootstrap' } })) === 1);
+check(
+  'bootstrap 写入审计',
+  (await prisma.auditEvent.count({ where: { action: 'account.bootstrap' } })) === 1,
+);
 
 await expectApiError(
   () =>
@@ -183,7 +212,10 @@ await prisma.session.createMany({
     absoluteExpiresAt: new Date(Date.now() + 86400_000),
   })),
 });
-check('已插入 2 条测试会话', (await prisma.session.count({ where: { userId: ownerId, revokedAt: null } })) === 2);
+check(
+  '已插入 2 条测试会话',
+  (await prisma.session.count({ where: { userId: ownerId, revokedAt: null } })) === 2,
+);
 
 await expectApiError(
   () =>
@@ -201,7 +233,9 @@ check(
 );
 check(
   '密码错误写入失败审计',
-  (await prisma.auditEvent.count({ where: { action: 'account.password_change', result: 'failure' } })) === 1,
+  (await prisma.auditEvent.count({
+    where: { action: 'account.password_change', result: 'failure' },
+  })) === 1,
 );
 
 const newPassword = 'Workbench-Secondary-Pass-42';
@@ -212,8 +246,14 @@ const changed = await changePassword(prisma, {
 });
 check('改密成功并吊销全部旧会话', changed.revokedSessions === 2);
 const afterChange = await prisma.user.findUnique({ where: { id: ownerId } });
-check('新密码可校验通过', afterChange !== null && (await verifyPassword(afterChange.passwordHash, newPassword)));
-check('旧密码失效', afterChange !== null && !(await verifyPassword(afterChange.passwordHash, ownerPassword)));
+check(
+  '新密码可校验通过',
+  afterChange !== null && (await verifyPassword(afterChange.passwordHash, newPassword)),
+);
+check(
+  '旧密码失效',
+  afterChange !== null && !(await verifyPassword(afterChange.passwordHash, ownerPassword)),
+);
 check(
   '改密成功审计中不含明文密码',
   (await prisma.auditEvent.count({
@@ -251,7 +291,10 @@ const issued = await issueRecoveryToken(prisma, { email: `owner@${DOMAIN}` });
 check('签发恢复令牌成功', issued !== null);
 const rawToken = issued?.token ?? '';
 
-const stored = issued === null ? null : await prisma.accountRecoveryToken.findFirst({ where: { userId: ownerId } });
+const stored =
+  issued === null
+    ? null
+    : await prisma.accountRecoveryToken.findFirst({ where: { userId: ownerId } });
 check('数据库只存令牌哈希', stored !== null && stored.tokenHash === hashOpaqueToken(rawToken));
 check('数据库不含明文令牌', stored !== null && stored.tokenHash !== rawToken);
 check(
@@ -260,7 +303,10 @@ check(
 );
 
 const recoveredPassword = 'Workbench-Recovered-Pass-42';
-const recovery = await completeRecovery(prisma, { token: rawToken, newPassword: recoveredPassword });
+const recovery = await completeRecovery(prisma, {
+  token: rawToken,
+  newPassword: recoveredPassword,
+});
 check('恢复成功并吊销全部会话', recovery.revokedSessions === 1);
 const afterRecovery = await prisma.user.findUnique({ where: { id: ownerId } });
 check(
@@ -269,7 +315,9 @@ check(
 );
 check(
   '令牌被标记为已使用',
-  (await prisma.accountRecoveryToken.count({ where: { id: stored?.id ?? '', usedAt: { not: null } } })) === 1,
+  (await prisma.accountRecoveryToken.count({
+    where: { id: stored?.id ?? '', usedAt: { not: null } },
+  })) === 1,
 );
 
 await expectApiError(
@@ -279,7 +327,8 @@ await expectApiError(
 );
 
 await expectApiError(
-  () => completeRecovery(prisma, { token: 'x'.repeat(43), newPassword: 'Workbench-Another-Pass-42' }),
+  () =>
+    completeRecovery(prisma, { token: 'x'.repeat(43), newPassword: 'Workbench-Another-Pass-42' }),
   'AUTH_INVALID_CREDENTIALS',
   '伪造令牌被拒绝',
 );
@@ -304,9 +353,13 @@ await cleanup();
 
 const failed = results.filter((item) => !item.ok);
 for (const item of results) {
-  console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`);
+  console.log(
+    `${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`,
+  );
 }
-console.log(`\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`);
+console.log(
+  `\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`,
+);
 
 await prisma.$disconnect();
 process.exitCode = failed.length === 0 ? 0 : 1;

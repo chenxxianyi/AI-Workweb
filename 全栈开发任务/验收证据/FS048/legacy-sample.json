@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "projects": [
+    {
+      "id": "p1",
+      "name": "F48旧项目",
+      "stage": "开发",
+      "nextStep": "核对迁移",
+      "progressManual": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "F48旧任务",
+      "priority": "P1",
+      "status": "doing",
+      "due": "2026-01-01",
+      "projectId": "p1",
+      "entryIds": [
+        "e1"
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "id": "e1",
+      "type": "pitfall",
+      "title": "F48排查记录",
+      "summary": "中文摘要",
+      "body": "旧正文\n```ts\nconst valid=true\n```",
+      "status": "verified",
+      "tags": [
+        "#Network",
+        "network"
+      ],
+      "useCount": 4,
+      "lastUsedAt": 1767225600,
+      "projectId": "p1",
+      "revisions": [
+        {
+          "body": "旧修订",
+          "at": 1767225500
+        }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "date": "2026-01-01",
+      "text": "同日重复日志",
+      "at": 1767225600
+    },
+    {
+      "date": "2026-01-01",
+      "text": "同日重复日志",
+      "at": 1767225600
+    }
+  ],
+  "ledger": [
+    {
+      "id": "l1",
+      "date": "2026-01-01",
+      "tool": "claude-code",
+      "scene": "写功能",
+      "minutes": 10,
+      "savedMinutes": 30,
+      "effect": 5,
+      "entryId": "e1",
+      "projectId": "missing"
+    }
+  ],
+  "settings": {
+    "theme": "dark"
+  }
+}

@@ -15,12 +15,13 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "test": "pnpm -r test",
+    "test:integration": "node scripts/integration.mjs",
     "test:unit": "pnpm --filter @aiwb/domain test && pnpm --filter @aiwb/contracts test",
     "dev": "pnpm -r --parallel dev",
-    "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 status",
-    "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 start",
-    "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 stop",
-    "db:init": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 init",
+    "db:status": "pwsh -NoProfile -File scripts/dev-db.ps1 status",
+    "db:start": "pwsh -NoProfile -File scripts/dev-db.ps1 start",
+    "db:stop": "pwsh -NoProfile -File scripts/dev-db.ps1 stop",
+    "db:init": "pwsh -NoProfile -File scripts/dev-db.ps1 init",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -43,3 +44,4 @@
     "typescript-eslint": "8.72.1"
   }
 }
+

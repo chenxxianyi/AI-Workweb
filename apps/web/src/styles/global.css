@@ -60,6 +60,45 @@ button,
 [role='tab'] {
   min-height: 44px;
 }
+:root button,
+:root [role='button'],
+:root [role='tab'] {
+  min-height: 44px;
+  min-width: 44px;
+}
+:root input,
+:root select,
+:root textarea {
+  min-height: 44px;
+  font-size: 16px;
+}
+:root main input,
+:root main select,
+:root main textarea {
+  max-width: 100%;
+}
+:root input:not([type='checkbox']):not([type='radio']),:root select,:root textarea {min-width:44px;}
+:root main {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+:root pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+@media (max-width: 1023px) {
+  :root a[href]:not(.skip-link) {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  :root h1 {
+    overflow-wrap: anywhere;
+  }
+}
 
 input,
 select,
@@ -81,6 +120,9 @@ textarea {
 }
 
 .skip-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   position: absolute;
   left: -9999px;
   top: 0;

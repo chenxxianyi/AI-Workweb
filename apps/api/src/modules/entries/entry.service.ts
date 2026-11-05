@@ -41,6 +41,7 @@ export interface EntryInput {
 }
 
 export interface EntryView {
+  taskLinks?: { id: string; title: string }[];
   id: string;
   type: EntryType;
   title: string;
@@ -77,19 +78,19 @@ function requireIfMatch(value: string | string[] | undefined): number {
 }
 
 export function normalizeTag(raw: string): string {
-  return raw
-    .trim()
-    .replace(/^#+/, '')
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
+  return raw.trim().replace(/^#+/, '').replace(/\s+/g, ' ').toLowerCase();
 }
 
 function assertBodyBytes(body: string): void {
   const bytes = Buffer.byteLength(body, 'utf8');
   if (bytes > BODY_LIMIT_BYTES) {
-    throw new ApiException('PAYLOAD_TOO_LARGE', `正文最多 ${BODY_LIMIT_BYTES} 字节（当前 ${bytes} 字节）`, {
-      fieldErrors: { body: [`最多 ${BODY_LIMIT_BYTES} 字节`] },
-    });
+    throw new ApiException(
+      'PAYLOAD_TOO_LARGE',
+      `正文最多 ${BODY_LIMIT_BYTES} 字节（当前 ${bytes} 字节）`,
+      {
+        fieldErrors: { body: [`最多 ${BODY_LIMIT_BYTES} 字节`] },
+      },
+    );
   }
 }
 
@@ -128,7 +129,43 @@ export class EntryService {
     return this.prisma.db;
   }
 
-  private async assertProject(workspaceId: string, projectId: string | null | undefined): Promise<void> {
+  async usage(
+    workspaceId: string,
+    entryId: string,
+  ): Promise<{ useCount: number; lastUsedAt: string | null }> {
+    const entry = await this.db.entry.findFirst({
+      where: { workspaceId, id: entryId, deletedAt: null },
+    });
+    if (entry === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
+    const usage = await this.db.entryUsage.findUnique({
+      where: { workspaceId_entryId: { workspaceId, entryId } },
+    });
+    return { useCount: usage?.useCount ?? 0, lastUsedAt: usage?.lastUsedAt.toISOString() ?? null };
+  }
+
+  async recordUsage(workspaceId: string, userId: string, entryId: string, key: string) {
+    return runIdempotent(
+      this.db,
+      { workspaceId, userId, scope: 'entry.usage:' + entryId, key, body: { entryId } },
+      async (tx) => {
+        const entry = await tx.entry.findFirst({
+          where: { workspaceId, id: entryId, deletedAt: null },
+        });
+        if (entry === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
+        const usage = await tx.entryUsage.upsert({
+          where: { workspaceId_entryId: { workspaceId, entryId } },
+          create: { workspaceId, entryId, useCount: 1, lastUsedAt: new Date() },
+          update: { useCount: { increment: 1 }, lastUsedAt: new Date() },
+        });
+        return { useCount: usage.useCount, lastUsedAt: usage.lastUsedAt.toISOString() };
+      },
+    );
+  }
+
+  private async assertProject(
+    workspaceId: string,
+    projectId: string | null | undefined,
+  ): Promise<void> {
     if (projectId === undefined || projectId === null) return;
     const project = await this.db.project.findFirst({
       where: { id: projectId, workspaceId, deletedAt: null },
@@ -194,13 +231,18 @@ export class EntryService {
   }
 
   private encodeCursor(updatedAt: Date, id: string): string {
-    return Buffer.from(JSON.stringify({ u: updatedAt.toISOString(), i: id }), 'utf8').toString('base64url');
+    return Buffer.from(JSON.stringify({ u: updatedAt.toISOString(), i: id }), 'utf8').toString(
+      'base64url',
+    );
   }
 
   private decodeCursor(cursor: string | undefined): { u: Date; i: string } | null {
     if (cursor === undefined || cursor === '') return null;
     try {
-      const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as { u?: string; i?: string };
+      const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+        u?: string;
+        i?: string;
+      };
       if (typeof parsed.u !== 'string' || typeof parsed.i !== 'string') return null;
       return { u: new Date(parsed.u), i: parsed.i };
     } catch {
@@ -219,7 +261,7 @@ export class EntryService {
       limit?: number;
       cursor?: string;
     } = {},
-  ): Promise<{ entries: EntryView[]; nextCursor: string | null; hasMore: boolean }> {
+  ): Promise<{ entries: Omit<EntryView, 'body'>[]; nextCursor: string | null; hasMore: boolean }> {
     const limit = Math.min(Math.max(filters.limit ?? 20, 1), 100);
     const cursor = this.decodeCursor(filters.cursor);
     const tagName = filters.tag === undefined ? undefined : normalizeTag(filters.tag);
@@ -231,9 +273,7 @@ export class EntryService {
         ...(filters.status === undefined ? {} : { status: filters.status }),
         ...(filters.type === undefined ? {} : { type: filters.type }),
         ...(filters.projectId === undefined ? {} : { projectId: filters.projectId }),
-        ...(tagName === undefined
-          ? {}
-          : { tags: { some: { tag: { nameNormalized: tagName } } } }),
+        ...(tagName === undefined ? {} : { tags: { some: { tag: { nameNormalized: tagName } } } }),
         ...(filters.q === undefined || filters.q.trim() === ''
           ? {}
           : {
@@ -257,17 +297,32 @@ export class EntryService {
     const tags = await this.tagsOf(page.map((row) => row.id));
     const last = page.at(-1);
     return {
-      entries: page.map((row) => this.toView(row, tags.get(row.id) ?? [])),
+      entries: page.map((row) => {
+        const { body: _body, ...summary } = this.toView(row, tags.get(row.id) ?? []);
+        return summary;
+      }),
       hasMore: rows.length > limit,
-      nextCursor: rows.length > limit && last !== undefined ? this.encodeCursor(last.updatedAt, last.id) : null,
+      nextCursor:
+        rows.length > limit && last !== undefined
+          ? this.encodeCursor(last.updatedAt, last.id)
+          : null,
     };
   }
 
   async get(workspaceId: string, entryId: string): Promise<EntryView> {
-    const entry = await this.db.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null } });
+    const entry = await this.db.entry.findFirst({
+      where: { id: entryId, workspaceId, deletedAt: null },
+    });
     if (entry === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
     const tags = await this.tagsOf([entry.id]);
-    return this.toView(entry, tags.get(entry.id) ?? []);
+    const taskLinks = await this.db.taskEntry.findMany({
+      where: { workspaceId, entryId, task: { workspaceId, deletedAt: null } },
+      select: { task: { select: { id: true, title: true } } },
+    });
+    return {
+      ...this.toView(entry, tags.get(entry.id) ?? []),
+      taskLinks: taskLinks.map((link) => link.task),
+    };
   }
 
   private assertCreateInput(input: EntryInput): void {
@@ -282,12 +337,23 @@ export class EntryService {
       });
     }
     if (input.body !== undefined) assertBodyBytes(input.body);
-    if (input.rating !== undefined && input.rating !== null && (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5)) {
-      throw new ApiException('VALIDATION_FAILED', '评分需为 1～5 的整数', { fieldErrors: { rating: ['需为 1～5'] } });
+    if (
+      input.rating !== undefined &&
+      input.rating !== null &&
+      (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5)
+    ) {
+      throw new ApiException('VALIDATION_FAILED', '评分需为 1～5 的整数', {
+        fieldErrors: { rating: ['需为 1～5'] },
+      });
     }
   }
 
-  private async syncTags(client: PrismaClient, workspaceId: string, entryId: string, tags: string[]): Promise<void> {
+  private async syncTags(
+    client: PrismaClient,
+    workspaceId: string,
+    entryId: string,
+    tags: string[],
+  ): Promise<void> {
     await client.entryTag.deleteMany({ where: { entryId } });
     for (const normalized of tags) {
       const tag = await client.tag.upsert({
@@ -362,7 +428,9 @@ export class EntryService {
 
     await this.db.$transaction(async (tx) => {
       const client = tx as unknown as PrismaClient;
-      const current = await client.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null } });
+      const current = await client.entry.findFirst({
+        where: { id: entryId, workspaceId, deletedAt: null },
+      });
       if (current === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
       if (current.version !== expected) {
         throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', {
@@ -398,7 +466,8 @@ export class EntryService {
           version: { increment: 1 },
         },
       });
-      if (updated.count === 0) throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改');
+      if (updated.count === 0)
+        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改');
 
       if (tags !== undefined) await this.syncTags(client, workspaceId, entryId, tags);
       await client.auditEvent.create({
@@ -412,7 +481,11 @@ export class EntryService {
           summary: '更新知识条目',
         },
       });
-      await this.projects.touchActivity(client, workspaceId, input.projectId === undefined ? current.projectId : input.projectId);
+      await this.projects.touchActivity(
+        client,
+        workspaceId,
+        input.projectId === undefined ? current.projectId : input.projectId,
+      );
     });
 
     return this.get(workspaceId, entryId);
@@ -429,10 +502,14 @@ export class EntryService {
     const expected = requireIfMatch(ifMatch);
     await this.db.$transaction(async (tx) => {
       const client = tx as unknown as PrismaClient;
-      const current = await client.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null } });
+      const current = await client.entry.findFirst({
+        where: { id: entryId, workspaceId, deletedAt: null },
+      });
       if (current === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
       if (current.version !== expected) {
-        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', { currentVersion: current.version });
+        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', {
+          currentVersion: current.version,
+        });
       }
       if (!TRANSITIONS[current.status].includes(next)) {
         throw new ApiException('ENTRY_STATE_INVALID', `不允许从 ${current.status} 转换到 ${next}`, {
@@ -442,7 +519,8 @@ export class EntryService {
       if (next === 'verified') {
         const missing: Record<string, string[]> = {};
         if (current.title.trim() === '') missing['title'] = ['转已验证前必须填写标题'];
-        if (current.summary === null || current.summary.trim() === '') missing['summary'] = ['转已验证前必须填写摘要'];
+        if (current.summary === null || current.summary.trim() === '')
+          missing['summary'] = ['转已验证前必须填写摘要'];
         if (current.body.trim() === '') missing['body'] = ['转已验证前必须填写正文'];
         if (Object.keys(missing).length > 0) {
           throw new ApiException('VALIDATION_FAILED', '转为已验证前需补全标题、摘要与正文', {
@@ -455,7 +533,8 @@ export class EntryService {
         where: { id: entryId, workspaceId, version: expected, deletedAt: null },
         data: { status: next, version: { increment: 1 } },
       });
-      if (updated.count === 0) throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改');
+      if (updated.count === 0)
+        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改');
       await client.auditEvent.create({
         data: {
           workspaceId,
@@ -481,10 +560,14 @@ export class EntryService {
     const expected = requireIfMatch(ifMatch);
     await this.db.$transaction(async (tx) => {
       const client = tx as unknown as PrismaClient;
-      const current = await client.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null } });
+      const current = await client.entry.findFirst({
+        where: { id: entryId, workspaceId, deletedAt: null },
+      });
       if (current === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
       if (current.version !== expected) {
-        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', { currentVersion: current.version });
+        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', {
+          currentVersion: current.version,
+        });
       }
       await client.entry.update({
         where: { id: entryId },
@@ -505,7 +588,11 @@ export class EntryService {
   }
 
   /** 每个条目只保留最近 5 条正文修订（契约 C-23）；裁剪与写入在同一事务内 */
-  private async trimRevisions(client: PrismaClient, workspaceId: string, entryId: string): Promise<void> {
+  private async trimRevisions(
+    client: PrismaClient,
+    workspaceId: string,
+    entryId: string,
+  ): Promise<void> {
     const keep = await client.entryRevision.findMany({
       where: { workspaceId, entryId },
       orderBy: { savedAt: 'desc' },
@@ -522,9 +609,19 @@ export class EntryService {
     workspaceId: string,
     entryId: string,
   ): Promise<{
-    revisions: { id: string; body: string; bodyBytes: number; savedAt: string; sourceVersion: number; savedBy: string }[];
+    revisions: {
+      id: string;
+      body: string;
+      bodyBytes: number;
+      savedAt: string;
+      sourceVersion: number;
+      savedBy: string;
+    }[];
   }> {
-    const entry = await this.db.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null }, select: { id: true } });
+    const entry = await this.db.entry.findFirst({
+      where: { id: entryId, workspaceId, deletedAt: null },
+      select: { id: true },
+    });
     if (entry === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
     const rows = await this.db.entryRevision.findMany({
       where: { workspaceId, entryId },
@@ -564,16 +661,21 @@ export class EntryService {
 
     await this.db.$transaction(async (tx) => {
       const client = tx as unknown as PrismaClient;
-      const current = await client.entry.findFirst({ where: { id: entryId, workspaceId, deletedAt: null } });
+      const current = await client.entry.findFirst({
+        where: { id: entryId, workspaceId, deletedAt: null },
+      });
       if (current === null) throw new ApiException('NOT_FOUND', '知识条目不存在');
       if (current.version !== expected) {
-        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', { currentVersion: current.version });
+        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改', {
+          currentVersion: current.version,
+        });
       }
 
       const revision = await client.entryRevision.findFirst({
         where: { id: revisionId, entryId, workspaceId },
       });
-      if (revision === null) throw new ApiException('REVISION_NOT_FOUND', '修订不存在或不属于该条目');
+      if (revision === null)
+        throw new ApiException('REVISION_NOT_FOUND', '修订不存在或不属于该条目');
 
       // 先保留当前正文
       await client.entryRevision.create({
@@ -591,7 +693,8 @@ export class EntryService {
         where: { id: entryId, workspaceId, version: expected, deletedAt: null },
         data: { body: revision.body, version: { increment: 1 } },
       });
-      if (updated.count === 0) throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改');
+      if (updated.count === 0)
+        throw new ApiException('PRECONDITION_FAILED', '该条目已被其他设备修改');
 
       await client.auditEvent.create({
         data: {

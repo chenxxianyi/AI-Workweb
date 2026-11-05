@@ -1,0 +1,353 @@
+{
+  "completed": 49,
+  "files": 21589,
+  "bytes": 226767381,
+  "checkedAt": "2026-11-05T04:44:20.419Z",
+  "result": "passed",
+  "scope": "每个已完成任务进度指针的全部manifest文件；历史失败/被替代版本不自动提升",
+  "tasks": [
+    {
+      "task": "F01",
+      "files": 121,
+      "version": "全栈开发任务/存档/FS001/版本/20261103-135155-069-45032006",
+      "manifestSha256": "53ff009e77e2d944bbe6152fbb31c60ef20228cb121605ae9344c6b41f7c96e9",
+      "verified": true
+    },
+    {
+      "task": "F02",
+      "files": 131,
+      "version": "全栈开发任务/存档/FS002/版本/20261103-135727-070-c89e5d9d",
+      "manifestSha256": "c6a91b16ee261fccc9c2976a973406550ff9f830b592b5472878502d9f801af6",
+      "verified": true
+    },
+    {
+      "task": "F03",
+      "files": 145,
+      "version": "全栈开发任务/存档/FS003/版本/20261103-141205-764-5fd571d1",
+      "manifestSha256": "6d3427346aa3f73595bbfed2c6d394911d97cfa05ce0904943406754a8cc6985",
+      "verified": true
+    },
+    {
+      "task": "F04",
+      "files": 180,
+      "version": "全栈开发任务/存档/FS004/版本/20261103-142046-478-ee242705",
+      "manifestSha256": "a8f8ab4da32aab9babeda66b187efa381e6b8484b153f98215826ad193a0372a",
+      "verified": true
+    },
+    {
+      "task": "F05",
+      "files": 191,
+      "version": "全栈开发任务/存档/FS005/版本/20261103-143513-158-5e44899a",
+      "manifestSha256": "b1f750c884996cc46d9e61ad7c393e23d30fb980edb3b0b34486858f5b835282",
+      "verified": true
+    },
+    {
+      "task": "F06",
+      "files": 206,
+      "version": "全栈开发任务/存档/FS006/版本/20261103-144131-359-c026f1c4",
+      "manifestSha256": "f64fd783ed8e592ea33c7947432deedbcbca158a936173a429a5bd72b2221fdc",
+      "verified": true
+    },
+    {
+      "task": "F07",
+      "files": 235,
+      "version": "全栈开发任务/存档/FS007/版本/20261103-144755-299-08de930e",
+      "manifestSha256": "0ed9eee400cce8f0b87cadd257c29a5ed1d1a7f41934c375f69289fdf08ca70b",
+      "verified": true
+    },
+    {
+      "task": "F08",
+      "files": 250,
+      "version": "全栈开发任务/存档/FS008/版本/20261103-150000-288-20a53cca",
+      "manifestSha256": "27c3668df1e8d6dd705f6740f15e169b680ac6ac1c3de9b85eae9d91c030a5e8",
+      "verified": true
+    },
+    {
+      "task": "F09",
+      "files": 260,
+      "version": "全栈开发任务/存档/FS009/版本/20261103-150649-039-f899cc85",
+      "manifestSha256": "330d9309bc7fc975d1f594013e1739589a83b57538447338e11f61eef7b54212",
+      "verified": true
+    },
+    {
+      "task": "F10",
+      "files": 269,
+      "version": "全栈开发任务/存档/FS010/版本/20261103-151106-456-d7d24cfa",
+      "manifestSha256": "9e9de95da7d5536a04fe59eb3eaa257845b2a0e478e3d2f0ad8e7d27b8f87939",
+      "verified": true
+    },
+    {
+      "task": "F11",
+      "files": 286,
+      "version": "全栈开发任务/存档/FS011/版本/20261103-152934-274-2108a961",
+      "manifestSha256": "0170c66a76bbcac711a8f0bd90c1d2bf0761eeeba598b952acc1cdd28660df55",
+      "verified": true
+    },
+    {
+      "task": "F12",
+      "files": 292,
+      "version": "全栈开发任务/存档/FS012/版本/20261103-153509-874-c846fa37",
+      "manifestSha256": "64a476f0c3b41a66f923c7e7fd99b30aab68d523da224aee84a2b03ddc3c65ca",
+      "verified": true
+    },
+    {
+      "task": "F13",
+      "files": 302,
+      "version": "全栈开发任务/存档/FS013/版本/20261103-154151-759-12fe9a63",
+      "manifestSha256": "f4096f09c2b26281e2bf4037fe1703dae765c765cf0cae8da95ab1eb02bd8f1b",
+      "verified": true
+    },
+    {
+      "task": "F14",
+      "files": 309,
+      "version": "全栈开发任务/存档/FS014/版本/20261103-154618-086-8406bac8",
+      "manifestSha256": "8fa496f2660fbfb2e88a1fb9084135edaef7ac6659e2c71b7483db52595f691d",
+      "verified": true
+    },
+    {
+      "task": "F15",
+      "files": 314,
+      "version": "全栈开发任务/存档/FS015/版本/20261103-154937-797-a766bf23",
+      "manifestSha256": "0d7ddc83052ab9833353f38110437c897a9e95ba06fa591cbd629d52f4f120ab",
+      "verified": true
+    },
+    {
+      "task": "F16",
+      "files": 323,
+      "version": "全栈开发任务/存档/FS016/版本/20261103-155910-151-73d63a17",
+      "manifestSha256": "c1eafe9ba0aed5e140a1bf22195aef84619641f5a9fa15d412ad8329d1fccb43",
+      "verified": true
+    },
+    {
+      "task": "F17",
+      "files": 424,
+      "version": "全栈开发任务/存档/FS017/版本/20261103-175836-899-b1f92b6b",
+      "manifestSha256": "4e3917641587967d9de64aaa830731c80dc762527c5e8df737d89145442ac3d3",
+      "verified": true
+    },
+    {
+      "task": "F18",
+      "files": 424,
+      "version": "全栈开发任务/存档/FS018/版本/20261103-175859-183-b4aef1ce",
+      "manifestSha256": "85ef4b8e5ddf73596d073626e66ee027584ef80dbb574efbdaa72f940528d0eb",
+      "verified": true
+    },
+    {
+      "task": "F19",
+      "files": 345,
+      "version": "全栈开发任务/存档/FS019/版本/20261103-161527-269-3b71e755",
+      "manifestSha256": "584b6ebe6b63709696053d2ad23b35abaee07a4e746bab0420b9ed0c48de8307",
+      "verified": true
+    },
+    {
+      "task": "F20",
+      "files": 356,
+      "version": "全栈开发任务/存档/FS020/版本/20261103-162017-936-cdbc7fa9",
+      "manifestSha256": "993123a9230ea50c47bc2411fa17d678ce4a57e91146727989fbcb512365434c",
+      "verified": true
+    },
+    {
+      "task": "F21",
+      "files": 363,
+      "version": "全栈开发任务/存档/FS021/版本/20261103-162602-722-55b9b284",
+      "manifestSha256": "66b175ffb3aa97b85cd3b704415845f65128ce3ed0397a7c4a98665eed8264de",
+      "verified": true
+    },
+    {
+      "task": "F22",
+      "files": 379,
+      "version": "全栈开发任务/存档/FS022/版本/20261103-171853-962-4276588c",
+      "manifestSha256": "3c285b5f9df285e58c8a611eff01b646edff3e59b975ac8941df3e91caa3f721",
+      "verified": true
+    },
+    {
+      "task": "F23",
+      "files": 392,
+      "version": "全栈开发任务/存档/FS023/版本/20261103-173221-014-559c9bde",
+      "manifestSha256": "514dcd098b6ee2f5cb2737a3e5c38aadb343c2ee03cc103e92671781c21925fa",
+      "verified": true
+    },
+    {
+      "task": "F24",
+      "files": 404,
+      "version": "全栈开发任务/存档/FS024/版本/20261103-173856-648-bc64c7e3",
+      "manifestSha256": "7c6713815068c8b168150b5a90bd24e4362caeb1fe00829cef6c3621bbdf65d5",
+      "verified": true
+    },
+    {
+      "task": "F25",
+      "files": 413,
+      "version": "全栈开发任务/存档/FS025/版本/20261103-174709-637-820815c0",
+      "manifestSha256": "9c8f6e1f89ac658be7ac4d3b06b4315e4c75c87aac450f14c2daa0b817c8bd75",
+      "verified": true
+    },
+    {
+      "task": "F26",
+      "files": 424,
+      "version": "全栈开发任务/存档/FS026/版本/20261103-175901-910-b6c0b772",
+      "manifestSha256": "ad24ebb183212a65882f9080f9111640e8359da3ed2124fb4eb38ec8eea91f6f",
+      "verified": true
+    },
+    {
+      "task": "F27",
+      "files": 430,
+      "version": "全栈开发任务/存档/FS027/版本/20261103-180058-023-0379803e",
+      "manifestSha256": "e3faa1c76bd98fde0620b44aa2223c4744ab3834de8d7d6af76892601efc60b8",
+      "verified": true
+    },
+    {
+      "task": "F28",
+      "files": 436,
+      "version": "全栈开发任务/存档/FS028/版本/20261103-180410-751-8fdb9bc0",
+      "manifestSha256": "a0bd18b7836f1b271779e05a2952cc8b356b931b6332879a763fa75770f49b31",
+      "verified": true
+    },
+    {
+      "task": "F29",
+      "files": 443,
+      "version": "全栈开发任务/存档/FS029/版本/20261103-180803-936-7c38b29a",
+      "manifestSha256": "f1c2bea90295e065e1574dd98372bab403845fb47185e1e8ad7159ee98e7619b",
+      "verified": true
+    },
+    {
+      "task": "F30",
+      "files": 449,
+      "version": "全栈开发任务/存档/FS030/版本/20261103-181554-471-bcc6f79d",
+      "manifestSha256": "f4ee768e3212a8cbc6e0bf173e091561024300b9ef882cfa3786d6225b556aa9",
+      "verified": true
+    },
+    {
+      "task": "F31",
+      "files": 454,
+      "version": "全栈开发任务/存档/FS031/版本/20261103-182452-479-5053fd85",
+      "manifestSha256": "76899bc63df77b6b638a5627be5e6a22f630fb56111e6dd92c9a1b8e605360b0",
+      "verified": true
+    },
+    {
+      "task": "F32",
+      "files": 466,
+      "version": "全栈开发任务/存档/FS032/版本/20261104-092651-678-cfb79f91",
+      "manifestSha256": "b84c450ddc09570469f3a51129fef855045581fbed65880e197a67427e877aa9",
+      "verified": true
+    },
+    {
+      "task": "F33",
+      "files": 476,
+      "version": "全栈开发任务/存档/FS033/版本/20261104-093456-783-1f3e54f4",
+      "manifestSha256": "8eb1d2a0768b49da8975d63cf43133c5adead0fb78f1e032952eb81ff3cafeb6",
+      "verified": true
+    },
+    {
+      "task": "F34",
+      "files": 497,
+      "version": "全栈开发任务/存档/FS034/版本/20261104-095543-617-2979a4ea",
+      "manifestSha256": "6df787c4f3cdb37c5b426856a8cebeb767fabf98c1afdfa4d37acfb520081848",
+      "verified": true
+    },
+    {
+      "task": "F35",
+      "files": 519,
+      "version": "全栈开发任务/存档/FS035/版本/20261104-102942-330-ef52bd9d",
+      "manifestSha256": "229c1435b0f81414030e4e0753c87555c6372c45904e5056edfe73f2b9f501f1",
+      "verified": true
+    },
+    {
+      "task": "F36",
+      "files": 533,
+      "version": "全栈开发任务/存档/FS036/版本/20261104-113622-281-e332768d",
+      "manifestSha256": "e0a60c45ce5b30ba840bdae2a37dc7031c53e0c3294dde616eb059d22600a24f",
+      "verified": true
+    },
+    {
+      "task": "F37",
+      "files": 543,
+      "version": "全栈开发任务/存档/FS037/版本/20261104-114212-633-c0555af9",
+      "manifestSha256": "803ba9f685f08765a8d99c3bd6f691aa04c354dab3c5966993823dca0ee1eb01",
+      "verified": true
+    },
+    {
+      "task": "F38",
+      "files": 554,
+      "version": "全栈开发任务/存档/FS038/版本/20261104-114518-542-00c34cf1",
+      "manifestSha256": "a335c3fc1a00c2a03f0a3013b29c356c795d1aa5f5eebe39bc9eb4c01078f570",
+      "verified": true
+    },
+    {
+      "task": "F39",
+      "files": 588,
+      "version": "全栈开发任务/存档/FS039/版本/20261104-115046-064-3597d24a",
+      "manifestSha256": "9228c90f58a66d7f2c817f34d5917dc298687fe956c96795ca7ad90685ab94eb",
+      "verified": true
+    },
+    {
+      "task": "F40",
+      "files": 601,
+      "version": "全栈开发任务/存档/FS040/版本/20261104-130710-472-b036276b",
+      "manifestSha256": "b562416cc03f8f9c0dfd78f0631a36002dfd7a8dfe8e0dd3e0d2e8b2ed94f021",
+      "verified": true
+    },
+    {
+      "task": "F41",
+      "files": 668,
+      "version": "全栈开发任务/存档/FS041/版本/20261104-133215-087-197f5887",
+      "manifestSha256": "21f015eb8957fc8dd2a431f84338aca0a8e2f1d95bfbb93455ad23d402e9b83e",
+      "verified": true
+    },
+    {
+      "task": "F42",
+      "files": 694,
+      "version": "全栈开发任务/存档/FS042/版本/20261104-142124-807-d03a6a00",
+      "manifestSha256": "68d21046d54f959326ca8fe6b5c06a6316101670a00d123c44672a65bad35ed5",
+      "verified": true
+    },
+    {
+      "task": "F43",
+      "files": 705,
+      "version": "全栈开发任务/存档/FS043/版本/20261105-112610-315-321e9163",
+      "manifestSha256": "7d8d5cdd5f30f95f77cb43e35d86b838e1e6161ed5c02f02fc9eb9155fba4c3f",
+      "verified": true
+    },
+    {
+      "task": "F44",
+      "files": 779,
+      "version": "全栈开发任务/存档/FS044/版本/20261105-113356-201-ea9548f7",
+      "manifestSha256": "13c6e72dfc5263cfaafe2b00743ed5cb7ae3278939071cbbf0e66196ea1d497f",
+      "verified": true
+    },
+    {
+      "task": "F45",
+      "files": 786,
+      "version": "全栈开发任务/存档/FS045/版本/20261105-113941-437-0f282f57",
+      "manifestSha256": "ac03b87fbbb31cac99abbf580b0e889c72de55b6b06313961493bd76a9122031",
+      "verified": true
+    },
+    {
+      "task": "F46",
+      "files": 795,
+      "version": "全栈开发任务/存档/FS046/版本/20261105-114514-450-5852405a",
+      "manifestSha256": "f6ad214da6ca369f55e113963ac41aa44a0daaa261aa74c77ddb35da14458cc4",
+      "verified": true
+    },
+    {
+      "task": "F47",
+      "files": 801,
+      "version": "全栈开发任务/存档/FS047/版本/20261105-114931-236-eb3a5da9",
+      "manifestSha256": "567e8d639cb4ea152d19e9eaca76ba3cb1d0e55c9a99b655273bbce5af1fa622",
+      "verified": true
+    },
+    {
+      "task": "F48",
+      "files": 809,
+      "version": "全栈开发任务/存档/FS048/版本/20261105-115304-469-1346eecc",
+      "manifestSha256": "aa82bb6a83ddc8aaa72deae71af9fe0a22eef9e1a41807d3896ddb29a4de5733",
+      "verified": true
+    },
+    {
+      "task": "F49",
+      "files": 825,
+      "version": "全栈开发任务/存档/FS049/版本/20261105-120142-189-822e59f9",
+      "manifestSha256": "18a56db7997bf0a398360d318c4b9256861e71d6a89b44c19a4aaf55db17885a",
+      "verified": true
+    }
+  ]
+}

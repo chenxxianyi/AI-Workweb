@@ -1,0 +1,9 @@
+import {describe,expect,it} from 'vitest';
+import {sceneStatistics,weeklyStatistics,type AnalyticsRow} from './analytics';
+import {addDays,businessDate,diffDays} from './date';
+describe('analytics deterministic boundaries',()=>{
+ it('zero rows produce no scenes and eight zero weeks',()=>{expect(sceneStatistics([])).toEqual([]);const weeks=weeklyStatistics([],'2027-01-01');expect(weeks).toHaveLength(8);expect(weeks.every(w=>w.count===0&&w.minutes===0&&w.savedMinutes===0)).toBe(true);expect(weeks.at(-1)?.weekStart).toBe('2026-12-28');});
+ it('rounds once, sorts deterministically and never mutates frozen input',()=>{const rows=Object.freeze([{recordDate:'2026-11-04',scene:'coding',minutes:20,savedMinutes:0,effect:3},{recordDate:'2026-11-04',scene:'coding',minutes:10,savedMinutes:5,effect:4},{recordDate:'2026-11-04',scene:'design',minutes:1,savedMinutes:0,effect:5}].map(Object.freeze)) as readonly AnalyticsRow[];const before=JSON.stringify(rows),out=sceneStatistics(rows);expect(out.map(x=>x.scene)).toEqual(['design','coding']);expect(out[1]).toMatchObject({averageEffect:3.5,minutes:30,savedMinutes:5,count:2});expect(JSON.stringify(rows)).toBe(before);});
+ it('includes Monday and today but excludes future and ninth-old week',()=>{const rows=['2026-09-06','2026-09-07','2026-11-02','2026-11-04','2026-11-05'].map(recordDate=>({recordDate,minutes:10,savedMinutes:0}));const out=weeklyStatistics(rows,'2026-11-04');expect(out.reduce((n,w)=>n+w.count,0)).toBe(2);expect(out.at(-1)).toMatchObject({count:2,minutes:20,savedMinutes:0});});
+ it('thresholds across year, leap day and workspace midnight remain calendar dates',()=>{expect(diffDays('2026-12-25','2027-01-01')).toBe(7);expect(diffDays('2028-02-22','2028-02-29')).toBe(7);expect(addDays('2028-02-29',1)).toBe('2028-03-01');expect(businessDate('2026-12-31T15:59:59.999Z','Asia/Shanghai')).toBe('2026-12-31');expect(businessDate('2026-12-31T16:00:00.000Z','Asia/Shanghai')).toBe('2027-01-01');});
+});

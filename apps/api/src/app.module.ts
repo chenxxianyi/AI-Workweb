@@ -14,6 +14,13 @@ import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { LedgerModule } from './modules/ledger/ledger.module.js';
 import { EntryModule } from './modules/entries/entry.module.js';
 import { SearchModule } from './modules/search/search.module.js';
+import { LogsModule } from './modules/logs/logs.module.js';
+import { AnalyticsModule } from './modules/ledger/analytics.module.js';
+import { TransfersModule } from './modules/transfers/transfers.module.js';
+import { ImportsModule } from './modules/transfers/imports.module.js';
+import { PreferencesModule } from './modules/preferences/preferences.module.js';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
+import { OfflineModule } from './modules/offline/offline.module.js';
 import { WorkspaceGuard } from './modules/workspaces/workspace.guard.js';
 import { CsrfGuard } from './modules/auth/csrf.guard.js';
 import { SessionAuthGuard } from './modules/auth/session.guard.js';
@@ -29,7 +36,7 @@ import { SessionAuthGuard } from './modules/auth/session.guard.js';
  * 公开路由用 `@Public()` 显式开放；写请求默认校验 CSRF，持有型凭据用 `@CsrfExempt()`。
  */
 @Module({
-  imports: [ConfigModule, PrismaModule, AuthModule, WorkspaceModule, ProjectModule, TaskModule, DashboardModule, LedgerModule, EntryModule, SearchModule],
+  imports: [ConfigModule, PrismaModule, AuthModule, WorkspaceModule, ProjectModule, TaskModule, DashboardModule, LedgerModule, EntryModule, SearchModule, LogsModule, AnalyticsModule, TransfersModule, ImportsModule, PreferencesModule, MaintenanceModule, OfflineModule],
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
@@ -42,6 +49,6 @@ import { SessionAuthGuard } from './modules/auth/session.guard.js';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(createAccessLogMiddleware()).forRoutes('*');
+    consumer.apply(createAccessLogMiddleware()).forRoutes('{*path}');
   }
 }

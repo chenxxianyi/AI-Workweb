@@ -1,0 +1,14 @@
+{
+  "checks": 14,
+  "release": "local-final-v5",
+  "url": "http://127.0.0.1:3000",
+  "backup": "1793852582038-76537285",
+  "temporaryEntities": {
+    "project": "431f29c0-5115-41c1-9bc8-1905d6f52d2f",
+    "task": "c5fe7fc1-9705-4883-91bb-d4f0ba589d47",
+    "entry": "47af958b-ab95-44a5-9d6f-10e0a1135620",
+    "ledger": "78e681ce-d4ea-4a9c-8200-4ca694129be7"
+  },
+  "cleanup": "仅软删除本脚本合成记录，审计和回收站保留",
+  "result": "passed"
+}

@@ -1,0 +1,362 @@
+{
+  "versions": 59,
+  "files": 25010,
+  "failedPreserved": 1,
+  "result": "passed",
+  "scope": "所有历史版本机械完整性；历史失败/被替代业务结论不提升为验收通过",
+  "results": [
+    {
+      "checkpoint": "FS000",
+      "version": "20261103-114348-864-7815f2c8",
+      "state": "manifest-integrity-passed",
+      "files": 64
+    },
+    {
+      "checkpoint": "FS000",
+      "version": "20261103-114739-416-f1af12d8",
+      "state": "manifest-integrity-passed",
+      "files": 65
+    },
+    {
+      "checkpoint": "FS000",
+      "version": "20261103-120313-907-89ff920d",
+      "state": "manifest-integrity-passed",
+      "files": 119
+    },
+    {
+      "checkpoint": "FS001",
+      "version": "20261103-135155-069-45032006",
+      "state": "manifest-integrity-passed",
+      "files": 121
+    },
+    {
+      "checkpoint": "FS002",
+      "version": "20261103-135727-070-c89e5d9d",
+      "state": "manifest-integrity-passed",
+      "files": 131
+    },
+    {
+      "checkpoint": "FS003",
+      "version": "20261103-141205-764-5fd571d1",
+      "state": "manifest-integrity-passed",
+      "files": 145
+    },
+    {
+      "checkpoint": "FS004",
+      "version": "20261103-142046-478-ee242705",
+      "state": "manifest-integrity-passed",
+      "files": 180
+    },
+    {
+      "checkpoint": "FS005",
+      "version": "20261103-143513-158-5e44899a",
+      "state": "manifest-integrity-passed",
+      "files": 191
+    },
+    {
+      "checkpoint": "FS006",
+      "version": "20261103-144131-359-c026f1c4",
+      "state": "manifest-integrity-passed",
+      "files": 206
+    },
+    {
+      "checkpoint": "FS007",
+      "version": "20261103-144755-299-08de930e",
+      "state": "manifest-integrity-passed",
+      "files": 235
+    },
+    {
+      "checkpoint": "FS008",
+      "version": "20261103-150000-288-20a53cca",
+      "state": "manifest-integrity-passed",
+      "files": 250
+    },
+    {
+      "checkpoint": "FS009",
+      "version": "20261103-150649-039-f899cc85",
+      "state": "manifest-integrity-passed",
+      "files": 260
+    },
+    {
+      "checkpoint": "FS010",
+      "version": "20261103-151106-456-d7d24cfa",
+      "state": "manifest-integrity-passed",
+      "files": 269
+    },
+    {
+      "checkpoint": "FS011",
+      "version": "20261103-152913-726-6da63032",
+      "state": "manifest-integrity-passed",
+      "files": 286
+    },
+    {
+      "checkpoint": "FS011",
+      "version": "20261103-152934-274-2108a961",
+      "state": "manifest-integrity-passed",
+      "files": 286
+    },
+    {
+      "checkpoint": "FS012",
+      "version": "20261103-153509-874-c846fa37",
+      "state": "manifest-integrity-passed",
+      "files": 292
+    },
+    {
+      "checkpoint": "FS013",
+      "version": "20261103-154151-759-12fe9a63",
+      "state": "manifest-integrity-passed",
+      "files": 302
+    },
+    {
+      "checkpoint": "FS014",
+      "version": "20261103-154618-086-8406bac8",
+      "state": "manifest-integrity-passed",
+      "files": 309
+    },
+    {
+      "checkpoint": "FS015",
+      "version": "20261103-154937-797-a766bf23",
+      "state": "manifest-integrity-passed",
+      "files": 314
+    },
+    {
+      "checkpoint": "FS016",
+      "version": "20261103-155850-212-6cc13b58",
+      "state": "manifest-integrity-passed",
+      "files": 323
+    },
+    {
+      "checkpoint": "FS016",
+      "version": "20261103-155910-151-73d63a17",
+      "state": "manifest-integrity-passed",
+      "files": 323
+    },
+    {
+      "checkpoint": "FS017",
+      "version": "20261103-160644-603-ee5ce76a",
+      "state": "manifest-integrity-passed",
+      "files": 330
+    },
+    {
+      "checkpoint": "FS017",
+      "version": "20261103-175836-899-b1f92b6b",
+      "state": "manifest-integrity-passed",
+      "files": 424
+    },
+    {
+      "checkpoint": "FS018",
+      "version": "20261103-161124-955-5ac7f106",
+      "state": "manifest-integrity-passed",
+      "files": 339
+    },
+    {
+      "checkpoint": "FS018",
+      "version": "20261103-175859-183-b4aef1ce",
+      "state": "manifest-integrity-passed",
+      "files": 424
+    },
+    {
+      "checkpoint": "FS019",
+      "version": "20261103-161527-269-3b71e755",
+      "state": "manifest-integrity-passed",
+      "files": 345
+    },
+    {
+      "checkpoint": "FS020",
+      "version": "20261103-162017-936-cdbc7fa9",
+      "state": "manifest-integrity-passed",
+      "files": 356
+    },
+    {
+      "checkpoint": "FS021",
+      "version": "20261103-162602-722-55b9b284",
+      "state": "manifest-integrity-passed",
+      "files": 363
+    },
+    {
+      "checkpoint": "FS022",
+      "version": "20261103-171853-962-4276588c",
+      "state": "manifest-integrity-passed",
+      "files": 379
+    },
+    {
+      "checkpoint": "FS023",
+      "version": "20261103-173221-014-559c9bde",
+      "state": "manifest-integrity-passed",
+      "files": 392
+    },
+    {
+      "checkpoint": "FS024",
+      "version": "20261103-173856-648-bc64c7e3",
+      "state": "manifest-integrity-passed",
+      "files": 404
+    },
+    {
+      "checkpoint": "FS025",
+      "version": "20261103-174709-637-820815c0",
+      "state": "manifest-integrity-passed",
+      "files": 413
+    },
+    {
+      "checkpoint": "FS026",
+      "version": "20261103-175901-910-b6c0b772",
+      "state": "manifest-integrity-passed",
+      "files": 424
+    },
+    {
+      "checkpoint": "FS027",
+      "version": "20261103-180058-023-0379803e",
+      "state": "manifest-integrity-passed",
+      "files": 430
+    },
+    {
+      "checkpoint": "FS028",
+      "version": "20261103-180410-751-8fdb9bc0",
+      "state": "manifest-integrity-passed",
+      "files": 436
+    },
+    {
+      "checkpoint": "FS029",
+      "version": "20261103-180803-936-7c38b29a",
+      "state": "manifest-integrity-passed",
+      "files": 443
+    },
+    {
+      "checkpoint": "FS030",
+      "version": "20261103-181554-471-bcc6f79d",
+      "state": "manifest-integrity-passed",
+      "files": 449
+    },
+    {
+      "checkpoint": "FS031",
+      "version": "20261103-182452-479-5053fd85",
+      "state": "manifest-integrity-passed",
+      "files": 454
+    },
+    {
+      "checkpoint": "FS032",
+      "version": "20261104-092651-678-cfb79f91",
+      "state": "manifest-integrity-passed",
+      "files": 466
+    },
+    {
+      "checkpoint": "FS033",
+      "version": "20261104-093456-783-1f3e54f4",
+      "state": "manifest-integrity-passed",
+      "files": 476
+    },
+    {
+      "checkpoint": "FS034",
+      "version": "20261104-095543-617-2979a4ea",
+      "state": "manifest-integrity-passed",
+      "files": 497
+    },
+    {
+      "checkpoint": "FS035",
+      "version": "20261104-102942-330-ef52bd9d",
+      "state": "manifest-integrity-passed",
+      "files": 519
+    },
+    {
+      "checkpoint": "FS036",
+      "version": "20261104-113622-281-e332768d",
+      "state": "manifest-integrity-passed",
+      "files": 533
+    },
+    {
+      "checkpoint": "FS037",
+      "version": "20261104-114212-633-c0555af9",
+      "state": "manifest-integrity-passed",
+      "files": 543
+    },
+    {
+      "checkpoint": "FS038",
+      "version": "20261104-114518-542-00c34cf1",
+      "state": "manifest-integrity-passed",
+      "files": 554
+    },
+    {
+      "checkpoint": "FS039",
+      "version": "20261104-115046-064-3597d24a",
+      "state": "manifest-integrity-passed",
+      "files": 588
+    },
+    {
+      "checkpoint": "FS040",
+      "version": "20261104-130710-472-b036276b",
+      "state": "manifest-integrity-passed",
+      "files": 601
+    },
+    {
+      "checkpoint": "FS041",
+      "version": "20261104-133215-087-197f5887",
+      "state": "manifest-integrity-passed",
+      "files": 668
+    },
+    {
+      "checkpoint": "FS042",
+      "version": "20261104-142124-807-d03a6a00",
+      "state": "manifest-integrity-passed",
+      "files": 694
+    },
+    {
+      "checkpoint": "FS043",
+      "version": "20261105-112610-315-321e9163",
+      "state": "manifest-integrity-passed",
+      "files": 705
+    },
+    {
+      "checkpoint": "FS044",
+      "version": "20261105-113356-201-ea9548f7",
+      "state": "manifest-integrity-passed",
+      "files": 779
+    },
+    {
+      "checkpoint": "FS045",
+      "version": "20261105-113941-437-0f282f57",
+      "state": "manifest-integrity-passed",
+      "files": 786
+    },
+    {
+      "checkpoint": "FS046",
+      "version": "20261105-114514-450-5852405a",
+      "state": "manifest-integrity-passed",
+      "files": 795
+    },
+    {
+      "checkpoint": "FS047",
+      "version": "20261105-114931-236-eb3a5da9",
+      "state": "manifest-integrity-passed",
+      "files": 801
+    },
+    {
+      "checkpoint": "FS048",
+      "version": "20261105-115304-469-1346eecc",
+      "state": "manifest-integrity-passed",
+      "files": 809
+    },
+    {
+      "checkpoint": "FS049",
+      "version": "20261105-120142-189-822e59f9",
+      "state": "manifest-integrity-passed",
+      "files": 825
+    },
+    {
+      "checkpoint": "FS050",
+      "version": "20261105-125611-714-ed5fbf91",
+      "state": "failed-version-preserved"
+    },
+    {
+      "checkpoint": "FS050",
+      "version": "20261105-125718-111-f452b349",
+      "state": "manifest-integrity-passed",
+      "files": 941
+    },
+    {
+      "checkpoint": "FS051",
+      "version": "20261105-130158-904-f7a245a6",
+      "state": "manifest-integrity-passed",
+      "files": 954
+    }
+  ]
+}

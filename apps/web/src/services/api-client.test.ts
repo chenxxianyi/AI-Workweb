@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiClient, ApiError } from './api-client';
 
-function jsonResponse(body: unknown, init: { status?: number; headers?: Record<string, string> } = {}): Response {
+function jsonResponse(
+  body: unknown,
+  init: { status?: number; headers?: Record<string, string> } = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status: init.status ?? 200,
     headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
@@ -49,13 +52,18 @@ describe('ApiClient 请求层', () => {
   it('412 被识别为冲突', async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse(
-        { error: { code: 'PRECONDITION_FAILED', message: '已被修改', currentVersion: 9 }, requestId: 'r-3' },
+        {
+          error: { code: 'PRECONDITION_FAILED', message: '已被修改', currentVersion: 9 },
+          requestId: 'r-3',
+        },
         { status: 412 },
       ),
     );
     const client = new ApiClient('/api/v1', fetchMock as unknown as typeof fetch);
 
-    const error = (await client.patch('/workspaces/w/tasks/t', {}, { ifMatch: 8 }).catch((e: unknown) => e)) as ApiError;
+    const error = (await client
+      .patch('/workspaces/w/tasks/t', {}, { ifMatch: 8 })
+      .catch((e: unknown) => e)) as ApiError;
     expect(error.isConflict).toBe(true);
     expect(error.currentVersion).toBe(9);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -66,7 +74,10 @@ describe('ApiClient 请求层', () => {
 
   it('401 被识别为未认证', async () => {
     const fetchMock = vi.fn(async () =>
-      jsonResponse({ error: { code: 'SESSION_EXPIRED', message: '登录已过期' }, requestId: 'r-4' }, { status: 401 }),
+      jsonResponse(
+        { error: { code: 'SESSION_EXPIRED', message: '登录已过期' }, requestId: 'r-4' },
+        { status: 401 },
+      ),
     );
     const client = new ApiClient('/api/v1', fetchMock as unknown as typeof fetch);
 
@@ -119,7 +130,9 @@ describe('ApiClient 请求层', () => {
   });
 
   it('写请求带 CSRF 与幂等键', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ data: { id: 't1' }, requestId: 'r-5' }, { status: 201 }));
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ data: { id: 't1' }, requestId: 'r-5' }, { status: 201 }),
+    );
     const client = new ApiClient('/api/v1', fetchMock as unknown as typeof fetch);
     client.setCsrfToken('csrf-123');
 
@@ -137,4 +150,40 @@ describe('ApiClient 请求层', () => {
       }),
     );
   });
+});
+
+it('binary upload preserves file bytes, CSRF and operation key', async () => {
+  const fetchMock = vi.fn(async () => jsonResponse({ data: { id: 'job' }, requestId: 'r-file' }));
+  const client = new ApiClient('/api/v1', fetchMock as unknown as typeof fetch);
+  client.setCsrfToken('disposable-csrf');
+  const file = new Blob(['{"中文":true}']);
+  await client.request('/imports/preview', {
+    method: 'POST',
+    rawBody: file,
+    headers: { 'Content-Type': 'application/octet-stream' },
+    idempotencyKey: 'original-key',
+  });
+  expect(fetchMock).toHaveBeenCalledWith('/api/v1/imports/preview',
+    expect.objectContaining({
+      body: file,
+      headers: expect.objectContaining({
+        'X-CSRF-Token': 'disposable-csrf',
+        'Idempotency-Key': 'original-key',
+        'Content-Type': 'application/octet-stream',
+      }),
+    }),
+  );
+});
+it('download returns exact bytes and still rejects authentication errors', async () => {
+  const bytes = '中文 & <code>';
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(bytes))
+    .mockResolvedValueOnce(
+      jsonResponse({ error: { code: 'SESSION_EXPIRED', message: 'expired' } }, { status: 401 }),
+    );
+  const client = new ApiClient('/api/v1', fetchMock as unknown as typeof fetch);
+  const blob = await client.get<Blob>('/download', { responseType: 'blob' });
+  expect(await blob.text()).toBe(bytes);
+  await expect(client.get('/download', { responseType: 'blob' })).rejects.toBeInstanceOf(ApiError);
 });

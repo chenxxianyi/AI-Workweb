@@ -1,0 +1,758 @@
+[
+  {
+    "path": "/today",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/projects",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/projects/a4211111-1111-4111-8111-111111111111",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/kb",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/kb/a4222222-2222-4222-8222-222222222222",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/ledger",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/settings",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/settings/transfers",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/settings/maintenance",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/settings/team",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/settings/audit",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/offline",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/search",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/missing",
+    "width": 375,
+    "theme": "light",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true
+  },
+  {
+    "path": "/today",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/projects",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/projects/a4211111-1111-4111-8111-111111111111",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/kb",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/kb/a4222222-2222-4222-8222-222222222222",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/ledger",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/transfers",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/maintenance",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/team",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/audit",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/offline",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 360,
+    "scrollWidth": 360,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/search",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/missing",
+    "width": 375,
+    "theme": "dark",
+    "clientWidth": 375,
+    "scrollWidth": 375,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/today",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      },
+      {
+        "height": 20.796875,
+        "tag": "A",
+        "text": "修复SSE重复提交",
+        "width": 171.3125
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/projects",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      },
+      {
+        "height": 20.796875,
+        "tag": "A",
+        "text": "查看详情",
+        "width": 52
+      },
+      {
+        "height": 20.796875,
+        "tag": "A",
+        "text": "查看详情",
+        "width": 52
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/projects/a4211111-1111-4111-8111-111111111111",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      },
+      {
+        "height": 15,
+        "tag": "A",
+        "text": "项目雷达",
+        "width": 48
+      },
+      {
+        "height": 20.796875,
+        "tag": "A",
+        "text": "长任务长任务长任务长任务长任务长任务长任务长任务",
+        "width": 145.203125
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      },
+      {
+        "height": 18,
+        "tag": "A",
+        "text": "返回今日聚焦",
+        "width": 84
+      },
+      {
+        "height": 18,
+        "tag": "A",
+        "text": "在本机队列记录离线状态变更",
+        "width": 182
+      },
+      {
+        "height": 18,
+        "tag": "A",
+        "text": "所属项目",
+        "width": 56
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/kb",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      },
+      {
+        "height": 18,
+        "tag": "A",
+        "text": "超过7天的草稿 0 条",
+        "width": 122.734375
+      },
+      {
+        "height": 18,
+        "tag": "A",
+        "text": "常用知识与全局搜索",
+        "width": 126
+      },
+      {
+        "height": 22.390625,
+        "tag": "A",
+        "text": "断连问题排查",
+        "width": 84
+      },
+      {
+        "height": 22.390625,
+        "tag": "A",
+        "text": "SSE断连重试",
+        "width": 80.859375
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/kb/a4222222-2222-4222-8222-222222222222",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      },
+      {
+        "height": 15,
+        "tag": "A",
+        "text": "← 返回列表",
+        "width": 63.5625
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/ledger",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      },
+      {
+        "height": 18,
+        "tag": "A",
+        "text": "本机草稿与待同步",
+        "width": 112
+      },
+      {
+        "height": 18,
+        "tag": "A",
+        "text": "导入与导出",
+        "width": 70
+      },
+      {
+        "height": 22.390625,
+        "tag": "A",
+        "text": "成员与邀请",
+        "width": 70
+      },
+      {
+        "height": 22.390625,
+        "tag": "A",
+        "text": "回收站与空间维护",
+        "width": 112
+      },
+      {
+        "height": 22.390625,
+        "tag": "A",
+        "text": "操作审计",
+        "width": 56
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/transfers",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/maintenance",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/team",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/audit",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/offline",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 753,
+    "scrollWidth": 753,
+    "small": [
+      {
+        "height": 36,
+        "tag": "A",
+        "text": "打开全局搜索",
+        "width": 44
+      }
+    ],
+    "passed": false,
+    "themeMatches": true
+  },
+  {
+    "path": "/search",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/missing",
+    "width": 768,
+    "theme": "dark",
+    "clientWidth": 768,
+    "scrollWidth": 768,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/today",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/projects",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/projects/a4211111-1111-4111-8111-111111111111",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/tasks/a4233333-3333-4333-8333-333333333333",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/kb",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/kb/a4222222-2222-4222-8222-222222222222",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/ledger",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/transfers",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/maintenance",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/team",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/settings/audit",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/offline",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1425,
+    "scrollWidth": 1425,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/search",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  },
+  {
+    "path": "/missing",
+    "width": 1440,
+    "theme": "dark",
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "small": [],
+    "passed": true,
+    "themeMatches": true
+  }
+]

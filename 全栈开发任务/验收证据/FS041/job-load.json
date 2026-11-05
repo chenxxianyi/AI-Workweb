@@ -1,0 +1,38 @@
+{
+  "result": "passed",
+  "timestamp": "2026-11-04T05:27:31.621Z",
+  "export": {
+    "samples": 3,
+    "ms": [
+      11833.5023,
+      11499.305799999998,
+      11728.5488
+    ],
+    "p50": 11728.5488,
+    "p95": 11833.5023,
+    "p99": 11833.5023,
+    "note": "仅3个大作业样本，不宣称统计稳定性"
+  },
+  "previewMs": 82413.34950000001,
+  "prepareMs": 64.15099999999802,
+  "commitMs": 348722.99330000003,
+  "counts": {
+    "kept": 0,
+    "total": 110643,
+    "broken": 0,
+    "applied": {
+      "kept": 0,
+      "links": 0,
+      "created": 110643,
+      "updated": 0
+    },
+    "created": 110643,
+    "updated": 0,
+    "backupId": "58046152-16b3-4e9c-8e59-1472d9774747",
+    "conflicts": 0
+  },
+  "peakRssMiB": 943.1328125,
+  "sourceWorkspace": "b40c3f34-d948-46d3-8baa-420366de044e",
+  "targetWorkspace": "f231231f-2d1b-4ae8-8456-d716e2af6d70",
+  "concurrentScenario": "与20并发读写压测共享本机PostgreSQL；不修改两个基准空间的原实体"
+}

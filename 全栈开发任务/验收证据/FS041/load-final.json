@@ -1,0 +1,372 @@
+{
+  "timestamp": "2026-11-04T05:31:27.054Z",
+  "database": "aiwb_perf_test",
+  "durationMs": 900108.7775000001,
+  "concurrentRequestsPerBatch": 20,
+  "thinkMsBetweenBatches": 200,
+  "dataset": {
+    "spaces": 2,
+    "perSpace": {
+      "entries": 10000,
+      "tasks": 50000,
+      "ledger": 50000
+    }
+  },
+  "coldClientAndQueryMs": {
+    "list/tasks?limit=20": 17.900000000001455,
+    "list/entries?limit=20": 16.89760000000024,
+    "list/ledger?limit=20": 10.695899999998801,
+    "list/projects?limit=20": 38.92059999999765,
+    "aggregate/analytics/monthly?month=2026-11": 17.397799999998824,
+    "aggregate/analytics/weekly": 25.66359999999986,
+    "search/search/entries?q=中&limit=20": 60.656699999999546,
+    "empty-search/search/entries?q=未命中随机码999xyz&limit=20": 112.4393999999993
+  },
+  "requests": 50920,
+  "errors": {},
+  "errorRate": 0,
+  "metrics": {
+    "list": {
+      "count": 22916,
+      "p50": 38.65740000002552,
+      "p95": 64.95759999996517,
+      "p99": 95.12890000001062
+    },
+    "aggregate": {
+      "count": 11456,
+      "p50": 43.48510000000533,
+      "p95": 62.9719000000041,
+      "p99": 93.64830000000075
+    },
+    "search": {
+      "count": 5728,
+      "p50": 76.98489999998128,
+      "p95": 94.95910000009462,
+      "p99": 124.38920000009239
+    },
+    "write": {
+      "count": 5092,
+      "p50": 48.11589999997523,
+      "p95": 77.1130000000012,
+      "p99": 135.99560000002384
+    },
+    "empty-search": {
+      "count": 5728,
+      "p50": 137.96549999999115,
+      "p95": 166.725999999966,
+      "p99": 230.6078999999445
+    }
+  },
+  "resources": {
+    "platform": "win32",
+    "release": "10.0.26100",
+    "cpu": "AMD Ryzen 5 3600 6-Core Processor              ",
+    "logicalCores": 12,
+    "hostMemoryGiB": 15.94967269897461,
+    "maxNodeRssMiB": 251.1171875,
+    "nodeCPUPercentOneCore": 21.167552718371308,
+    "maxDbConnections": 14
+  },
+  "samples": [
+    {
+      "seconds": 18,
+      "rssMiB": 202,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 35,
+      "rssMiB": 206,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 52,
+      "rssMiB": 207,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 69,
+      "rssMiB": 207,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 86,
+      "rssMiB": 211,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 104,
+      "rssMiB": 210,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 121,
+      "rssMiB": 211,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 138,
+      "rssMiB": 211,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 155,
+      "rssMiB": 247,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 172,
+      "rssMiB": 246,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 189,
+      "rssMiB": 247,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 207,
+      "rssMiB": 247,
+      "connections": 13,
+      "active": 1
+    },
+    {
+      "seconds": 225,
+      "rssMiB": 246,
+      "connections": 13,
+      "active": 1
+    },
+    {
+      "seconds": 242,
+      "rssMiB": 246,
+      "connections": 13,
+      "active": 1
+    },
+    {
+      "seconds": 260,
+      "rssMiB": 247,
+      "connections": 13,
+      "active": 1
+    },
+    {
+      "seconds": 278,
+      "rssMiB": 246,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 295,
+      "rssMiB": 247,
+      "connections": 14,
+      "active": 4
+    },
+    {
+      "seconds": 313,
+      "rssMiB": 248,
+      "connections": 14,
+      "active": 4
+    },
+    {
+      "seconds": 331,
+      "rssMiB": 247,
+      "connections": 13,
+      "active": 1
+    },
+    {
+      "seconds": 349,
+      "rssMiB": 247,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 366,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 384,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 401,
+      "rssMiB": 247,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 418,
+      "rssMiB": 249,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 436,
+      "rssMiB": 249,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 454,
+      "rssMiB": 247,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 471,
+      "rssMiB": 247,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 488,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 506,
+      "rssMiB": 246,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 524,
+      "rssMiB": 247,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 541,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 559,
+      "rssMiB": 249,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 577,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 596,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 613,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 631,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 648,
+      "rssMiB": 250,
+      "connections": 12,
+      "active": 1
+    },
+    {
+      "seconds": 666,
+      "rssMiB": 250,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 683,
+      "rssMiB": 250,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 700,
+      "rssMiB": 249,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 718,
+      "rssMiB": 250,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 735,
+      "rssMiB": 248,
+      "connections": 12,
+      "active": 2
+    },
+    {
+      "seconds": 752,
+      "rssMiB": 250,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 769,
+      "rssMiB": 249,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 787,
+      "rssMiB": 249,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 810,
+      "rssMiB": 250,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 831,
+      "rssMiB": 249,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 849,
+      "rssMiB": 249,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 867,
+      "rssMiB": 249,
+      "connections": 11,
+      "active": 1
+    },
+    {
+      "seconds": 884,
+      "rssMiB": 249,
+      "connections": 11,
+      "active": 1
+    }
+  ]
+}

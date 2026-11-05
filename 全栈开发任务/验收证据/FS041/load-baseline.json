@@ -1,0 +1,71 @@
+{
+  "timestamp": "2026-11-04T05:12:27.259Z",
+  "database": "aiwb_perf_test",
+  "durationMs": 15300.0357,
+  "concurrentRequestsPerBatch": 20,
+  "thinkMsBetweenBatches": 200,
+  "dataset": {
+    "spaces": 2,
+    "perSpace": {
+      "entries": 10000,
+      "tasks": 50000,
+      "ledger": 50000
+    }
+  },
+  "coldClientAndQueryMs": {
+    "list/tasks?limit=20": 17.644499999998516,
+    "list/entries?limit=20": 18.13539999999921,
+    "list/ledger?limit=20": 11.320400000000518,
+    "list/projects?limit=20": 34.88160000000062,
+    "aggregate/analytics/monthly?month=2026-11": 12.367500000000291,
+    "aggregate/analytics/weekly": 22.553600000002916,
+    "search/search/entries?q=中&limit=20": 58.325700000001234,
+    "empty-search/search/entries?q=未命中随机码999xyz&limit=20": 106.21029999999882
+  },
+  "requests": 860,
+  "errors": {},
+  "errorRate": 0,
+  "metrics": {
+    "list": {
+      "count": 390,
+      "p50": 45.650000000001455,
+      "p95": 73.40199999999822,
+      "p99": 127.63609999999971
+    },
+    "aggregate": {
+      "count": 192,
+      "p50": 49.809799999999086,
+      "p95": 68.02089999999953,
+      "p99": 114.14129999999932
+    },
+    "search": {
+      "count": 96,
+      "p50": 80.80809999999838,
+      "p95": 95.23839999999836,
+      "p99": 153.44089999999778
+    },
+    "write": {
+      "count": 86,
+      "p50": 59.25249999999869,
+      "p95": 81.26460000000225,
+      "p99": 144.28759999999966
+    },
+    "empty-search": {
+      "count": 96,
+      "p50": 142.64170000000013,
+      "p95": 157.54729999999836,
+      "p99": 212.386599999998
+    }
+  },
+  "resources": {
+    "platform": "win32",
+    "release": "10.0.26100",
+    "cpu": "AMD Ryzen 5 3600 6-Core Processor              ",
+    "logicalCores": 12,
+    "hostMemoryGiB": 15.94967269897461,
+    "maxNodeRssMiB": 186.4921875,
+    "nodeCPUPercentOneCore": 28.901893346562584,
+    "maxDbConnections": 0
+  },
+  "samples": []
+}

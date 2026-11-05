@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { pino, type Logger } from 'pino';
 import { currentRequestId, normalizeRequestId, runWithRequestContext } from './request-context.js';
+import { RotatingLog } from './rotating-log.js';
 
 /**
  * 结构化日志（F06）。
@@ -43,7 +44,10 @@ export function createLogger(level: string, destination?: NodeJS.WritableStream)
   return destination === undefined ? pino(options) : pino(options, destination);
 }
 
-export const logger: Logger = createLogger(process.env['LOG_LEVEL'] ?? 'info');
+export const logger: Logger = createLogger(
+  process.env['LOG_LEVEL'] ?? 'info',
+  process.env['LOG_FILE'] ? new RotatingLog(process.env['LOG_FILE']) : undefined,
+);
 
 export interface AccessLogRecord {
   method: string;
@@ -62,6 +66,16 @@ export function createAccessLogMiddleware(log: Logger = logger) {
     const startedAt = process.hrtime.bigint();
 
     res.setHeader('X-Request-Id', requestId);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    const original =
+      (req as IncomingMessage & { originalUrl?: string }).originalUrl ?? req.url ?? '';
+    if (original.startsWith('/api/')) {
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.setHeader('Vary', 'Cookie');
+    }
     runWithRequestContext({ requestId }, () => {
       res.on('finish', () => {
         const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;

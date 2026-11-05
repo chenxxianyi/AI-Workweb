@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { parseEtag } from '@aiwb/contracts';
-import { businessDate, diffDays } from '@aiwb/domain';
+import { businessDate, diffDays, projectProgress } from '@aiwb/domain';
 import { ApiException } from '../../common/api-exception.js';
+import { runIdempotent } from '../../common/idempotency.js';
 import { PrismaService } from '../../common/prisma.module.js';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { ProjectStage } from '../../generated/prisma/enums.js';
@@ -120,7 +121,10 @@ function assertNextStep(nextStep: string | undefined): void {
   }
 }
 
-function assertProgressMode(progressManual: boolean | undefined, manualProgress: number | null | undefined): void {
+function assertProgressMode(
+  progressManual: boolean | undefined,
+  manualProgress: number | null | undefined,
+): void {
   if (progressManual === true) {
     if (manualProgress === undefined || manualProgress === null) {
       throw new ApiException('VALIDATION_FAILED', '手动进度模式需要提供 0～100 的进度值', {
@@ -142,13 +146,18 @@ function assertProgressMode(progressManual: boolean | undefined, manualProgress:
 
 /** 编码游标：只为稳定分页，客户端不解析 */
 function encodeCursor(lastActivityAt: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ u: lastActivityAt.toISOString(), i: id }), 'utf8').toString('base64url');
+  return Buffer.from(JSON.stringify({ u: lastActivityAt.toISOString(), i: id }), 'utf8').toString(
+    'base64url',
+  );
 }
 
 function decodeCursor(cursor: string | undefined): { u: Date; i: string } | null {
   if (cursor === undefined || cursor === '') return null;
   try {
-    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as { u?: string; i?: string };
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+      u?: string;
+      i?: string;
+    };
     if (typeof parsed.u !== 'string' || typeof parsed.i !== 'string') return null;
     return { u: new Date(parsed.u), i: parsed.i };
   } catch {
@@ -165,7 +174,11 @@ export class ProjectService {
   }
 
   /** 供任务／知识／台账模块在内容变化时调用，更新项目活动时间 */
-  async touchActivity(client: PrismaClient, workspaceId: string, projectId: string | null): Promise<void> {
+  async touchActivity(
+    client: PrismaClient,
+    workspaceId: string,
+    projectId: string | null,
+  ): Promise<void> {
     if (projectId === null) return;
     await client.project.updateMany({
       where: { id: projectId, workspaceId, deletedAt: null },
@@ -214,13 +227,17 @@ export class ProjectService {
     counts: { total: number; done: number },
     timezone: string,
   ): ProjectView {
-    const progress = project.progressManual
-      ? (project.manualProgress ?? 0)
-      : counts.total === 0
-        ? 0
-        : Math.round((counts.done / counts.total) * 100);
+    const progress = projectProgress(
+      project.progressManual,
+      project.manualProgress,
+      counts.total,
+      counts.done,
+    );
     const today = businessDate(new Date(), timezone);
-    const inactiveDays = Math.max(0, diffDays(businessDate(project.lastActivityAt, timezone), today));
+    const inactiveDays = Math.max(
+      0,
+      diffDays(businessDate(project.lastActivityAt, timezone), today),
+    );
 
     return {
       id: project.id,
@@ -294,7 +311,9 @@ export class ProjectService {
       page.map((row) => row.id),
     );
     const timezone = await this.timezoneOf(workspaceId);
-    let projects = page.map((row) => this.toView(row, counts.get(row.id) ?? { total: 0, done: 0 }, timezone));
+    let projects = page.map((row) =>
+      this.toView(row, counts.get(row.id) ?? { total: 0, done: 0 }, timezone),
+    );
 
     if (filter === 'inactive') projects = projects.filter((project) => project.inactive);
 
@@ -302,11 +321,19 @@ export class ProjectService {
     return {
       projects,
       hasMore: rows.length > limit,
-      nextCursor: rows.length > limit && last !== undefined ? encodeCursor(last.lastActivityAt, last.id) : null,
+      nextCursor:
+        rows.length > limit && last !== undefined
+          ? encodeCursor(last.lastActivityAt, last.id)
+          : null,
     };
   }
 
-  async create(workspaceId: string, actorUserId: string, input: ProjectInput): Promise<ProjectView> {
+  async create(
+    workspaceId: string,
+    actorUserId: string,
+    input: ProjectInput,
+    key: string,
+  ): Promise<ProjectView> {
     const name = input.name.trim();
     if (name.length === 0 || name.length > 100) {
       throw new ApiException('VALIDATION_FAILED', '项目名称需为 1～100 个字符', {
@@ -319,37 +346,41 @@ export class ProjectService {
     assertNextStep(input.nextStep);
     assertProgressMode(input.progressManual, input.manualProgress);
 
-    const created = await this.db.$transaction(async (tx) => {
-      const client = tx as unknown as PrismaClient;
-      const project = await client.project.create({
-        data: {
-          workspaceId,
-          createdBy: actorUserId,
-          name,
-          repo: input.repo ?? null,
-          stack: input.stack ?? [],
-          stage: input.stage ?? 'planning',
-          nextStep: input.nextStep ?? '',
-          progressManual: input.progressManual ?? false,
-          manualProgress: input.progressManual === true ? (input.manualProgress ?? 0) : null,
-          color: input.color ?? null,
-        },
-      });
-      await client.auditEvent.create({
-        data: {
-          workspaceId,
-          actorId: actorUserId,
-          action: 'project.created',
-          entityType: 'project',
-          entityId: project.id,
-          result: 'success',
-          summary: `创建项目：${project.name}`,
-        },
-      });
-      return project;
-    });
+    const timezone = await this.timezoneOf(workspaceId);
+    const result = await runIdempotent(
+      this.db,
+      { userId: actorUserId, workspaceId, scope: 'project.create', key, body: input },
+      async (client) => {
+        const project = await client.project.create({
+          data: {
+            workspaceId,
+            createdBy: actorUserId,
+            name,
+            repo: input.repo ?? null,
+            stack: input.stack ?? [],
+            stage: input.stage ?? 'planning',
+            nextStep: input.nextStep ?? '',
+            progressManual: input.progressManual ?? false,
+            manualProgress: input.progressManual === true ? (input.manualProgress ?? 0) : null,
+            color: input.color ?? null,
+          },
+        });
+        await client.auditEvent.create({
+          data: {
+            workspaceId,
+            actorId: actorUserId,
+            action: 'project.created',
+            entityType: 'project',
+            entityId: project.id,
+            result: 'success',
+            summary: `创建项目：${project.name}`,
+          },
+        });
+        return this.toView(project, { total: 0, done: 0 }, timezone);
+      },
+    );
 
-    return this.toView(created, { total: 0, done: 0 }, await this.timezoneOf(workspaceId));
+    return result.data;
   }
 
   async get(workspaceId: string, projectId: string): Promise<ProjectView> {
@@ -358,7 +389,11 @@ export class ProjectService {
     });
     if (project === null) throw new ApiException('NOT_FOUND', '项目不存在');
     const counts = await this.taskCounts(workspaceId, [project.id]);
-    return this.toView(project, counts.get(project.id) ?? { total: 0, done: 0 }, await this.timezoneOf(workspaceId));
+    return this.toView(
+      project,
+      counts.get(project.id) ?? { total: 0, done: 0 },
+      await this.timezoneOf(workspaceId),
+    );
   }
 
   async update(
@@ -399,9 +434,7 @@ export class ProjectService {
       // 手动模式切换：从自动切到手动时必须给出进度；从手动切到自动时清空 manual_progress
       const nextManual = input.progressManual ?? current.progressManual;
       const nextManualProgress =
-        nextManual === true
-          ? (input.manualProgress ?? current.manualProgress ?? 0)
-          : null;
+        nextManual === true ? (input.manualProgress ?? current.manualProgress ?? 0) : null;
 
       const result = await client.project.updateMany({
         where: { id: projectId, workspaceId, version: expected, deletedAt: null },
@@ -437,7 +470,11 @@ export class ProjectService {
     });
 
     const counts = await this.taskCounts(workspaceId, [updated.id]);
-    return this.toView(updated, counts.get(updated.id) ?? { total: 0, done: 0 }, await this.timezoneOf(workspaceId));
+    return this.toView(
+      updated,
+      counts.get(updated.id) ?? { total: 0, done: 0 },
+      await this.timezoneOf(workspaceId),
+    );
   }
 
   async setArchived(
@@ -448,44 +485,51 @@ export class ProjectService {
     archived: boolean,
   ): Promise<ProjectView> {
     const expected = requireIfMatch(ifMatch);
-    return this.db.$transaction(async (tx) => {
-      const client = tx as unknown as PrismaClient;
-      const current = await client.project.findFirst({
-        where: { id: projectId, workspaceId, deletedAt: null },
-        select: { version: true },
-      });
-      if (current === null) throw new ApiException('NOT_FOUND', '项目不存在');
-      if (current.version !== expected) {
-        throw new ApiException('PRECONDITION_FAILED', '该项目已被其他设备修改', {
-          currentVersion: current.version,
+    return this.db
+      .$transaction(async (tx) => {
+        const client = tx as unknown as PrismaClient;
+        const current = await client.project.findFirst({
+          where: { id: projectId, workspaceId, deletedAt: null },
+          select: { version: true },
         });
-      }
-      const result = await client.project.updateMany({
-        where: { id: projectId, workspaceId, version: expected, deletedAt: null },
-        data: {
-          archivedAt: archived ? new Date() : null,
-          version: { increment: 1 },
-          ...(archived ? {} : { lastActivityAt: new Date() }),
-        },
+        if (current === null) throw new ApiException('NOT_FOUND', '项目不存在');
+        if (current.version !== expected) {
+          throw new ApiException('PRECONDITION_FAILED', '该项目已被其他设备修改', {
+            currentVersion: current.version,
+          });
+        }
+        const result = await client.project.updateMany({
+          where: { id: projectId, workspaceId, version: expected, deletedAt: null },
+          data: {
+            archivedAt: archived ? new Date() : null,
+            version: { increment: 1 },
+            ...(archived ? {} : { lastActivityAt: new Date() }),
+          },
+        });
+        if (result.count === 0)
+          throw new ApiException('PRECONDITION_FAILED', '该项目已被其他设备修改');
+        const project = await client.project.findUniqueOrThrow({ where: { id: projectId } });
+        await client.auditEvent.create({
+          data: {
+            workspaceId,
+            actorId: actorUserId,
+            action: archived ? 'project.archived' : 'project.unarchived',
+            entityType: 'project',
+            entityId: projectId,
+            result: 'success',
+            summary: `${archived ? '归档' : '取消归档'}项目：${project.name}`,
+          },
+        });
+        return project;
+      })
+      .then(async (project) => {
+        const counts = await this.taskCounts(workspaceId, [project.id]);
+        return this.toView(
+          project,
+          counts.get(project.id) ?? { total: 0, done: 0 },
+          await this.timezoneOf(workspaceId),
+        );
       });
-      if (result.count === 0) throw new ApiException('PRECONDITION_FAILED', '该项目已被其他设备修改');
-      const project = await client.project.findUniqueOrThrow({ where: { id: projectId } });
-      await client.auditEvent.create({
-        data: {
-          workspaceId,
-          actorId: actorUserId,
-          action: archived ? 'project.archived' : 'project.unarchived',
-          entityType: 'project',
-          entityId: projectId,
-          result: 'success',
-          summary: `${archived ? '归档' : '取消归档'}项目：${project.name}`,
-        },
-      });
-      return project;
-    }).then(async (project) => {
-      const counts = await this.taskCounts(workspaceId, [project.id]);
-      return this.toView(project, counts.get(project.id) ?? { total: 0, done: 0 }, await this.timezoneOf(workspaceId));
-    });
   }
 
   /** 软删除（进入回收站，F34 处理恢复）；项目下的任务/知识不删除，界面上标注原项目已删除 */
@@ -512,7 +556,8 @@ export class ProjectService {
         where: { id: projectId, workspaceId, version: expected, deletedAt: null },
         data: { deletedAt: new Date(), version: { increment: 1 } },
       });
-      if (result.count === 0) throw new ApiException('PRECONDITION_FAILED', '该项目已被其他设备修改');
+      if (result.count === 0)
+        throw new ApiException('PRECONDITION_FAILED', '该项目已被其他设备修改');
       await client.auditEvent.create({
         data: {
           workspaceId,
@@ -528,17 +573,21 @@ export class ProjectService {
   }
 
   /** 详情聚合：项目 + 任务计数与最近任务 + 最近知识 + 台账摘要 */
-  async overview(
-    workspaceId: string,
-    projectId: string,
-  ): Promise<Record<string, unknown>> {
+  async overview(workspaceId: string, projectId: string): Promise<Record<string, unknown>> {
     const project = await this.get(workspaceId, projectId);
     const [recentTasks, recentEntries, ledgerAgg, recentLedger] = await Promise.all([
       this.db.task.findMany({
         where: { workspaceId, projectId, deletedAt: null },
         orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
         take: 5,
-        select: { id: true, title: true, status: true, priority: true, dueDate: true, version: true },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          version: true,
+        },
       }),
       this.db.entry.findMany({
         where: { workspaceId, projectId, deletedAt: null },
@@ -556,7 +605,14 @@ export class ProjectService {
         where: { workspaceId, projectId, deletedAt: null },
         orderBy: { recordDate: 'desc' },
         take: 5,
-        select: { id: true, recordDate: true, tool: true, scene: true, minutes: true, effect: true },
+        select: {
+          id: true,
+          recordDate: true,
+          tool: true,
+          scene: true,
+          minutes: true,
+          effect: true,
+        },
       }),
     ]);
 
@@ -570,13 +626,17 @@ export class ProjectService {
         })),
       },
       entries: {
-        recent: recentEntries.map((entry) => ({ ...entry, updatedAt: entry.updatedAt.toISOString() })),
+        recent: recentEntries.map((entry) => ({
+          ...entry,
+          updatedAt: entry.updatedAt.toISOString(),
+        })),
       },
       ledger: {
         count: ledgerAgg._count._all,
         totalMinutes: ledgerAgg._sum.minutes ?? 0,
         totalSavedMinutes: ledgerAgg._sum.savedMinutes ?? 0,
-        averageEffect: ledgerAgg._avg.effect === null ? null : Math.round(ledgerAgg._avg.effect * 10) / 10,
+        averageEffect:
+          ledgerAgg._avg.effect === null ? null : Math.round(ledgerAgg._avg.effect * 10) / 10,
         recent: recentLedger.map((record) => ({
           ...record,
           recordDate: record.recordDate.toISOString().slice(0, 10),

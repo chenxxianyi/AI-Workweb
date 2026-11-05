@@ -9,7 +9,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
  * - CSRF 令牌与 cookie 双提交配合会话绑定，写请求必须带 X-CSRF-Token。
  */
 
-export const CSRF_COOKIE_NAME = 'sfs_csrf';
+export const CSRF_COOKIE_NAME = process.env['CSRF_COOKIE_NAME'] ?? 'sfs_csrf';
 export const CSRF_HEADER_NAME = 'x-csrf-token';
 
 export function createSessionToken(): { token: string; tokenHash: string } {
@@ -60,7 +60,8 @@ export function serializeCookie(name: string, value: string, options: CookieOpti
   parts.push(`SameSite=${options.sameSite ?? 'Lax'}`);
   if (options.httpOnly) parts.push('HttpOnly');
   if (options.secure) parts.push('Secure');
-  if (options.maxAgeSeconds !== undefined) parts.push(`Max-Age=${Math.max(0, Math.floor(options.maxAgeSeconds))}`);
+  if (options.maxAgeSeconds !== undefined)
+    parts.push(`Max-Age=${Math.max(0, Math.floor(options.maxAgeSeconds))}`);
   return parts.join('; ');
 }
 

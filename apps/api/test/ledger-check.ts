@@ -24,7 +24,10 @@ if (databaseUrl === undefined) {
   process.exit(1);
 }
 const databaseName = new URL(databaseUrl).pathname.replace(/^\//, '');
-if (!databaseName.endsWith('_test')) {
+if (
+  !databaseName.endsWith('_test') ||
+  !['127.0.0.1', 'localhost'].includes(new URL(databaseUrl).hostname)
+) {
   console.error(`拒绝在非测试库上运行：${databaseName}`);
   process.exit(1);
 }
@@ -63,7 +66,9 @@ function applyCookies(jar: Jar, setCookies: string[]): void {
 
 function cookieHeader(jar: Jar): string | undefined {
   const entries = Object.entries(jar);
-  return entries.length === 0 ? undefined : entries.map(([name, value]) => `${name}=${value}`).join('; ');
+  return entries.length === 0
+    ? undefined
+    : entries.map(([name, value]) => `${name}=${value}`).join('; ');
 }
 
 const app: INestApplication = await NestFactory.create(AppModule, { logger: ['error'] });
@@ -75,9 +80,17 @@ const base = `http://127.0.0.1:${address.port}/api/v1`;
 function call(
   method: string,
   path: string,
-  options: { body?: unknown; jar?: Jar; csrf?: string; ifMatch?: string; idempotencyKey?: string } = {},
+  options: {
+    body?: unknown;
+    jar?: Jar;
+    csrf?: string;
+    ifMatch?: string;
+    idempotencyKey?: string;
+  } = {},
 ): Promise<Res> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (method === 'POST' && (path === '/workspaces' || /^\/workspaces\/[^/]+\/projects$/.test(path)))
+    headers['idempotency-key'] = globalThis.crypto.randomUUID();
   const cookie = options.jar === undefined ? undefined : cookieHeader(options.jar);
   if (cookie !== undefined) headers['cookie'] = cookie;
   if (options.csrf !== undefined) headers['x-csrf-token'] = options.csrf;
@@ -92,7 +105,11 @@ function call(
     const text = await response.text();
     const setCookies =
       typeof response.headers.getSetCookie === 'function' ? response.headers.getSetCookie() : [];
-    return { status: response.status, json: text === '' ? {} : (JSON.parse(text) as Record<string, unknown>), setCookies };
+    return {
+      status: response.status,
+      json: text === '' ? {} : (JSON.parse(text) as Record<string, unknown>),
+      setCookies,
+    };
   });
 }
 
@@ -118,7 +135,11 @@ await prisma.$executeRawUnsafe(
 
 const OWNER_EMAIL = 'ledger-owner@authtest.local';
 const OWNER_PASSWORD = 'Workbench-Kappa-Ledger-42';
-const boot = await bootstrapOwner(prisma, { email: OWNER_EMAIL, displayName: '日志 Owner', password: OWNER_PASSWORD });
+const boot = await bootstrapOwner(prisma, {
+  email: OWNER_EMAIL,
+  displayName: '日志 Owner',
+  password: OWNER_PASSWORD,
+});
 check('准备：Owner 与个人空间创建成功', boot.created === true);
 const spaceId = boot.created ? boot.workspaceId : '';
 const ownerId = boot.created ? boot.userId : '';
@@ -131,7 +152,9 @@ const viewer = await prisma.user.create({
     passwordHash: await hashPassword('Workbench-Lambda-Viewer-42'),
   },
 });
-await prisma.workspaceMember.create({ data: { workspaceId: spaceId, userId: viewer.id, role: 'viewer' } });
+await prisma.workspaceMember.create({
+  data: { workspaceId: spaceId, userId: viewer.id, role: 'viewer' },
+});
 
 const owner = await login(OWNER_EMAIL, OWNER_PASSWORD);
 const viewerSession = await login('ledger-viewer@authtest.local', 'Workbench-Lambda-Viewer-42');
@@ -161,10 +184,19 @@ const created = await call('POST', path, {
   idempotencyKey: 'ledger-key-1',
 });
 const createdData = created.json['data'] as
-  | { replayed?: boolean; record?: { id?: string; authorId?: string; savedMinutes?: number; version?: number } }
+  | {
+      replayed?: boolean;
+      record?: { id?: string; authorId?: string; savedMinutes?: number; version?: number };
+    }
   | undefined;
-check('创建日志 201 且作者为当前用户', created.status === 201 && createdData?.record?.authorId === ownerId);
-check('未给节省分钟时默认等于投入分钟（本用例显式给了 90）', createdData?.record?.savedMinutes === 90);
+check(
+  '创建日志 201 且作者为当前用户',
+  created.status === 201 && createdData?.record?.authorId === ownerId,
+);
+check(
+  '未给节省分钟时默认等于投入分钟（本用例显式给了 90）',
+  createdData?.record?.savedMinutes === 90,
+);
 const recordId = createdData?.record?.id ?? '';
 
 const replay = await call('POST', path, {
@@ -173,8 +205,14 @@ const replay = await call('POST', path, {
   csrf: owner.csrf,
   idempotencyKey: 'ledger-key-1',
 });
-check('同一幂等键重试返回首次结果', (replay.json['data'] as { replayed?: boolean } | undefined)?.replayed === true);
-check('重试后记录数仍为 1', (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === 1);
+check(
+  '同一幂等键重试返回首次结果',
+  (replay.json['data'] as { replayed?: boolean } | undefined)?.replayed === true,
+);
+check(
+  '重试后记录数仍为 1',
+  (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === 1,
+);
 
 // 同内容不同操作（不同键）可并存
 const second = await call('POST', path, {
@@ -183,7 +221,11 @@ const second = await call('POST', path, {
   csrf: owner.csrf,
   idempotencyKey: 'ledger-key-2',
 });
-check('同内容不同幂等键 → 各自保存一条', second.status === 201 && (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === 2);
+check(
+  '同内容不同幂等键 → 各自保存一条',
+  second.status === 201 &&
+    (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === 2,
+);
 
 // 伪造作者被拒
 const forged = await call('POST', path, {
@@ -192,7 +234,11 @@ const forged = await call('POST', path, {
   csrf: owner.csrf,
   idempotencyKey: 'ledger-forged',
 });
-check('伪造 authorId → 422 且不落库', forged.status === 422 && (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === 2);
+check(
+  '伪造 authorId → 422 且不落库',
+  forged.status === 422 &&
+    (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === 2,
+);
 
 // ---------------------------------------------------------------- 校验
 const badMinutes = await call('POST', path, {
@@ -241,31 +287,90 @@ check('Viewer 创建 → 403', viewerCreate.status === 403);
 // ---------------------------------------------------------------- 筛选与分页
 await prisma.ledgerRecord.createMany({
   data: [
-    { workspaceId: spaceId, createdBy: ownerId, recordDate: new Date(`${addDays(today, -2)}T00:00:00.000Z`), projectId: project.id, tool: 'codex', scene: 'review', minutes: 30, savedMinutes: 20, effect: 3 },
-    { workspaceId: spaceId, createdBy: ownerId, recordDate: new Date(`${addDays(today, -2)}T00:00:00.000Z`), tool: 'cursor', scene: 'debug', minutes: 45, savedMinutes: 25, effect: 5 },
-    { workspaceId: spaceId, createdBy: ownerId, recordDate: new Date(`${yesterday}T00:00:00.000Z`), tool: 'claude', scene: 'docs', minutes: 15, savedMinutes: 10, effect: 2 },
+    {
+      workspaceId: spaceId,
+      createdBy: ownerId,
+      recordDate: new Date(`${addDays(today, -2)}T00:00:00.000Z`),
+      projectId: project.id,
+      tool: 'codex',
+      scene: 'review',
+      minutes: 30,
+      savedMinutes: 20,
+      effect: 3,
+    },
+    {
+      workspaceId: spaceId,
+      createdBy: ownerId,
+      recordDate: new Date(`${addDays(today, -2)}T00:00:00.000Z`),
+      tool: 'cursor',
+      scene: 'debug',
+      minutes: 45,
+      savedMinutes: 25,
+      effect: 5,
+    },
+    {
+      workspaceId: spaceId,
+      createdBy: ownerId,
+      recordDate: new Date(`${yesterday}T00:00:00.000Z`),
+      tool: 'claude',
+      scene: 'docs',
+      minutes: 15,
+      savedMinutes: 10,
+      effect: 2,
+    },
   ],
 });
 
 const byProject = await call('GET', `${path}?projectId=${project.id}`, { jar: owner.jar });
-check('按项目筛选只返回该项目记录', (byProject.json['data'] as { records?: { projectId?: string }[] } | undefined)?.records?.every((record) => record.projectId === project.id) === true);
+check(
+  '按项目筛选只返回该项目记录',
+  (byProject.json['data'] as { records?: { projectId?: string }[] } | undefined)?.records?.every(
+    (record) => record.projectId === project.id,
+  ) === true,
+);
 
 const byTool = await call('GET', `${path}?tool=codex`, { jar: owner.jar });
-check('按工具筛选正确', (byTool.json['data'] as { records?: { tool?: string }[] } | undefined)?.records?.every((record) => record.tool === 'codex') === true);
+check(
+  '按工具筛选正确',
+  (byTool.json['data'] as { records?: { tool?: string }[] } | undefined)?.records?.every(
+    (record) => record.tool === 'codex',
+  ) === true,
+);
 
-const byRange = await call('GET', `${path}?from=${addDays(today, -2)}&to=${yesterday}`, { jar: owner.jar });
-check('按日期区间筛选返回 3 条', (byRange.json['data'] as { records?: unknown[] } | undefined)?.records?.length === 3);
+const byRange = await call('GET', `${path}?from=${addDays(today, -2)}&to=${yesterday}`, {
+  jar: owner.jar,
+});
+check(
+  '按日期区间筛选返回 3 条',
+  (byRange.json['data'] as { records?: unknown[] } | undefined)?.records?.length === 3,
+);
 
 const page1 = await call('GET', `${path}?limit=2`, { jar: owner.jar });
-const page1Data = page1.json['data'] as { records?: { id: string }[]; hasMore?: boolean; nextCursor?: string | null } | undefined;
-check('limit=2 返回 2 条且 hasMore', page1Data?.records?.length === 2 && page1Data?.hasMore === true && typeof page1Data?.nextCursor === 'string');
+const page1Data = page1.json['data'] as
+  { records?: { id: string }[]; hasMore?: boolean; nextCursor?: string | null } | undefined;
+check(
+  'limit=2 返回 2 条且 hasMore',
+  page1Data?.records?.length === 2 &&
+    page1Data?.hasMore === true &&
+    typeof page1Data?.nextCursor === 'string',
+);
 
-const page2 = await call('GET', `${path}?limit=2&cursor=${page1Data?.nextCursor ?? ''}`, { jar: owner.jar });
+const page2 = await call('GET', `${path}?limit=2&cursor=${page1Data?.nextCursor ?? ''}`, {
+  jar: owner.jar,
+});
 const page2Data = page2.json['data'] as { records?: { id: string }[] } | undefined;
 const page1Ids = (page1Data?.records ?? []).map((record) => record.id);
-check('第二页与第一页不重复', page2.status === 200 && (page2Data?.records ?? []).every((record) => !page1Ids.includes(record.id)));
+check(
+  '第二页与第一页不重复',
+  page2.status === 200 &&
+    (page2Data?.records ?? []).every((record) => !page1Ids.includes(record.id)),
+);
 
-const crossFilter = await call('GET', `${path}?limit=2&tool=codex&cursor=${page1Data?.nextCursor ?? ''}`, { jar: owner.jar });
+const crossFilter = await call(
+  'GET',
+  `${path}?limit=2&tool=codex&cursor=${page1Data?.nextCursor ?? ''}`,
+  { jar: owner.jar },
+);
 check(
   '旧游标换筛选条件 → 400 MALFORMED_REQUEST',
   crossFilter.status === 400 && errorCode(crossFilter) === 'MALFORMED_REQUEST',
@@ -274,11 +379,44 @@ check(
 
 // 重试条数稳定
 const countsBefore = await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } });
-await call('POST', path, { body: baseInput, jar: owner.jar, csrf: owner.csrf, idempotencyKey: 'ledger-key-1' });
-check('再次用旧幂等键重试，记录数不变', (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === countsBefore);
+await call('POST', path, {
+  body: baseInput,
+  jar: owner.jar,
+  csrf: owner.csrf,
+  idempotencyKey: 'ledger-key-1',
+});
+check(
+  '再次用旧幂等键重试，记录数不变',
+  (await prisma.ledgerRecord.count({ where: { workspaceId: spaceId } })) === countsBefore,
+);
 
 // ---------------------------------------------------------------- 更新与删除
-const noMatch = await call('PATCH', `${path}/${recordId}`, { body: { minutes: 70 }, jar: owner.jar, csrf: owner.csrf });
+const invalidPartial = await call('PATCH', `${path}/${recordId}`, {
+  body: { minutes: 0 },
+  jar: owner.jar,
+  csrf: owner.csrf,
+  ifMatch: '1',
+});
+check('部分更新仍校验分钟范围', invalidPartial.status === 422);
+const absentProject = await call('PATCH', `${path}/${recordId}`, {
+  body: { projectId: 'f2600000-0000-4000-8000-000000000001' },
+  jar: owner.jar,
+  csrf: owner.csrf,
+  ifMatch: '1',
+});
+check('只修改关联也校验项目归属', absentProject.status === 422);
+const absentEntry = await call('PATCH', `${path}/${recordId}`, {
+  body: { entryId: 'f2600000-0000-4000-8000-000000000002' },
+  jar: owner.jar,
+  csrf: owner.csrf,
+  ifMatch: '1',
+});
+check('只修改知识关联也校验归属', absentEntry.status === 422);
+const noMatch = await call('PATCH', `${path}/${recordId}`, {
+  body: { minutes: 70 },
+  jar: owner.jar,
+  csrf: owner.csrf,
+});
 check('PATCH 缺 If-Match → 428', noMatch.status === 428);
 
 const stale = await call('PATCH', `${path}/${recordId}`, {
@@ -287,7 +425,11 @@ const stale = await call('PATCH', `${path}/${recordId}`, {
   csrf: owner.csrf,
   ifMatch: '9',
 });
-check('PATCH 过期版本 → 412 且返回 currentVersion', stale.status === 412 && (stale.json['error'] as { currentVersion?: number } | undefined)?.currentVersion === 1);
+check(
+  'PATCH 过期版本 → 412 且返回 currentVersion',
+  stale.status === 412 &&
+    (stale.json['error'] as { currentVersion?: number } | undefined)?.currentVersion === 1,
+);
 
 const updated = await call('PATCH', `${path}/${recordId}`, {
   body: { minutes: 70, effect: 5 },
@@ -295,32 +437,70 @@ const updated = await call('PATCH', `${path}/${recordId}`, {
   csrf: owner.csrf,
   ifMatch: '1',
 });
-check('更新成功且版本 +1', updated.status === 200 && (updated.json['data'] as { version?: number } | undefined)?.version === 2);
+check(
+  '更新成功且版本 +1',
+  updated.status === 200 &&
+    (updated.json['data'] as { version?: number } | undefined)?.version === 2,
+);
 
 const summary = await call('GET', `${path}/summary`, { jar: owner.jar });
 const summaryData = summary.json['data'] as
-  | { count?: number; totalMinutes?: number; totalSavedMinutes?: number; averageEffect?: number | null; byTool?: { tool: string }[] }
+  | {
+      count?: number;
+      totalMinutes?: number;
+      totalSavedMinutes?: number;
+      averageEffect?: number | null;
+      byTool?: { tool: string }[];
+    }
   | undefined;
-check('汇总条数与总分钟正确', summary.status === 200 && summaryData?.count === countsBefore && typeof summaryData?.totalMinutes === 'number');
+check(
+  '汇总条数与总分钟正确',
+  summary.status === 200 &&
+    summaryData?.count === countsBefore &&
+    typeof summaryData?.totalMinutes === 'number',
+);
 check('汇总按工具分组非空', (summaryData?.byTool ?? []).length >= 2);
 
-const summaryRange = await call('GET', `${path}/summary?from=${today}&to=${today}`, { jar: owner.jar });
-check('汇总支持日期区间', (summaryRange.json['data'] as { count?: number } | undefined)?.count === 2);
+const summaryRange = await call('GET', `${path}/summary?from=${today}&to=${today}`, {
+  jar: owner.jar,
+});
+check(
+  '汇总支持日期区间',
+  (summaryRange.json['data'] as { count?: number } | undefined)?.count === 2,
+);
 
-const removed = await call('DELETE', `${path}/${recordId}`, { jar: owner.jar, csrf: owner.csrf, ifMatch: '2' });
+const removed = await call('DELETE', `${path}/${recordId}`, {
+  jar: owner.jar,
+  csrf: owner.csrf,
+  ifMatch: '2',
+});
 check('软删除成功', removed.status === 200);
-check('删除后详情 → 404', (await call('GET', `${path}/${recordId}`, { jar: owner.jar })).status === 404);
+check(
+  '删除后详情 → 404',
+  (await call('GET', `${path}/${recordId}`, { jar: owner.jar })).status === 404,
+);
 
 // ---------------------------------------------------------------- 隔离
 const otherSpace = await prisma.workspace.create({
   data: { name: '另一空间', timezone, createdBy: ownerId },
 });
-await prisma.workspaceMember.create({ data: { workspaceId: otherSpace.id, userId: ownerId, role: 'owner' } });
+await prisma.workspaceMember.create({
+  data: { workspaceId: otherSpace.id, userId: ownerId, role: 'owner' },
+});
 const otherSpaceList = await call('GET', `/workspaces/${otherSpace.id}/ledger`, { jar: owner.jar });
-check('另一空间查询不到本空间日志', (otherSpaceList.json['data'] as { records?: unknown[] } | undefined)?.records?.length === 0);
+check(
+  '另一空间查询不到本空间日志',
+  (otherSpaceList.json['data'] as { records?: unknown[] } | undefined)?.records?.length === 0,
+);
 
-const remaining = await prisma.ledgerRecord.findFirst({ where: { workspaceId: spaceId, deletedAt: null } });
-const crossSpaceDetail = await call('GET', `/workspaces/${otherSpace.id}/ledger/${remaining?.id ?? ''}`, { jar: owner.jar });
+const remaining = await prisma.ledgerRecord.findFirst({
+  where: { workspaceId: spaceId, deletedAt: null },
+});
+const crossSpaceDetail = await call(
+  'GET',
+  `/workspaces/${otherSpace.id}/ledger/${remaining?.id ?? ''}`,
+  { jar: owner.jar },
+);
 check('跨空间读取详情 → 404', crossSpaceDetail.status === 404);
 
 const viewerList = await call('GET', path, { jar: viewerSession.jar });
@@ -336,7 +516,10 @@ await call('POST', path, {
   idempotencyKey: 'ledger-activity-key',
 });
 const after = await prisma.project.findUnique({ where: { id: project.id } });
-check('记录日志会更新项目活动时间', before !== null && after !== null && after.lastActivityAt > before.lastActivityAt);
+check(
+  '记录日志会更新项目活动时间',
+  before !== null && after !== null && after.lastActivityAt > before.lastActivityAt,
+);
 
 // ---------------------------------------------------------------- 清理
 await app.close();
@@ -347,7 +530,11 @@ await prisma.$disconnect();
 
 const failed = results.filter((item) => !item.ok);
 for (const item of results) {
-  console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`);
+  console.log(
+    `${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`,
+  );
 }
-console.log(`\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`);
+console.log(
+  `\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`,
+);
 process.exitCode = failed.length === 0 ? 0 : 1;

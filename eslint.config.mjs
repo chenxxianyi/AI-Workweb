@@ -39,6 +39,11 @@ export default tseslint.config(
   },
   {
     files: ['**/*.config.{js,mjs,ts}', '**/scripts/**/*.{js,mjs,ts}'],
+    languageOptions: { globals: globals.node },
+    rules: { 'no-console': 'off' },
+  },
+  {
+    files: ['apps/api/test/**/*.ts', 'apps/api/src/cli/**/*.ts', 'database/seeds/**/*.ts'],
     rules: { 'no-console': 'off' },
   },
 );

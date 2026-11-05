@@ -1,0 +1,8 @@
+{
+  "restored": "aiwb_restore_production_1793853970076_test",
+  "backup": "1793852582038-76537285",
+  "tables": 24,
+  "durationMs": 455,
+  "recoveryPoint": "2026-11-05T04:23:02.090Z",
+  "validated": true
+}

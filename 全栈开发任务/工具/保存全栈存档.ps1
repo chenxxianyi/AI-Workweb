@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^FS\d{3}$')]
     [string]$Checkpoint,
-    [string]$Note = ''
+    [string]$Note = '',
+    [ValidatePattern('^(\d{8}-\d{6}-\d{3}-[a-f0-9]{8})?$')][string]$VersionName=''
 )
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..')).TrimEnd('\')
@@ -14,7 +15,7 @@ if (-not (Test-Path -LiteralPath $checkpointRecord -PathType Leaf)) {
 }
 $createdUtc = [DateTime]::UtcNow
 $createdShanghai = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId($createdUtc, 'China Standard Time')
-$versionName = $createdShanghai.ToString('yyyyMMdd-HHmmss-fff') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+if(-not $VersionName){$VersionName = $createdShanghai.ToString('yyyyMMdd-HHmmss-fff') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)}
 $snapshotPath = [IO.Path]::GetFullPath((Join-Path $taskRoot "全栈开发任务\存档\$Checkpoint\版本\$versionName"))
 if (-not $snapshotPath.StartsWith($taskPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw '快照路径超出工作区。' }
 if (Test-Path -LiteralPath $snapshotPath) { throw '拒绝覆盖现有快照。' }
@@ -24,6 +25,13 @@ $utf8 = New-Object Text.UTF8Encoding($false)
 $excluded = New-Object 'System.Collections.Generic.List[object]'
 $copied = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
 $skipDirectories = @('node_modules','.git','dist','build','coverage','.cache','.next','playwright-report','test-results','.data','generated','.volumes','pgdata','postgres-data','backups','secrets','volumes','版本')
+function Get-SnapshotHash([string]$File) {
+    # 后台启动日志可能保留写句柄；允许共享读取，但复制后hash不一致仍拒绝封存。
+    $stream=[IO.File]::Open($File,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try {return [Convert]::ToHexString($sha.ComputeHash($stream)).ToLowerInvariant()}
+    finally {$sha.Dispose();$stream.Dispose()}
+}
 
 function Add-SafeFile {
     param([string]$Source)
@@ -45,7 +53,7 @@ function Add-SafeFile {
     $target = Join-Path $filesRoot $relative
     New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
     Copy-Item -LiteralPath $fullSource -Destination $target
-    if ((Get-FileHash -LiteralPath $fullSource -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash) {
+    if ((Get-SnapshotHash $fullSource) -ne (Get-SnapshotHash $target)) {
         throw "复制后hash不同：$relative"
     }
 }
@@ -74,12 +82,12 @@ try {
     foreach ($required in @('AI编程工作台-开发方案.md','AI编程工作台-全栈全流程开发方案.md','README.md','全栈开发任务')) {
         Add-SafeTree -Relative $required -Required $true
     }
-    foreach ($optional in @('apps','packages','database','infra','tests','docs','.github\workflows')) {
+    foreach ($optional in @('apps','packages','database','infra','tests','docs','scripts','.github\workflows')) {
         Add-SafeTree -Relative $optional
     }
     $rootConfigPattern = '^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig.*\.json|eslint\.config\..+|vitest\.config\..+|playwright\.config\..+|\.gitignore|\.dockerignore|\.nvmrc|\.node-version|\.env\.example|compose.*\.ya?ml|Dockerfile.*|Makefile)$'
     foreach ($rootFile in @(Get-ChildItem -LiteralPath $taskRoot -File -Force)) {
-        if ($rootFile.Name -match $rootConfigPattern) { Add-SafeFile $rootFile.FullName }
+        if ($rootFile.Name -match $rootConfigPattern -or $rootFile.Name -in @('prisma7.config.ts','.editorconfig','.gitattributes','.prettierrc.json','.prettierignore')) { Add-SafeFile $rootFile.FullName }
     }
     foreach ($directory in @(Get-ChildItem -LiteralPath (Join-Path $taskRoot '全栈开发任务\存档') -Directory)) {
         if ($directory.Name -match '^FS\d{3}$') {

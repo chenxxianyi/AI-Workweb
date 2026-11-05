@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRefreshGuard } from '../../offline/refresh-guard';
+import { useContentTiming } from '../../services/content-timing';
+import { ApiError, apiClient } from '../../services/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState, ErrorState, LoadingState, Notice, PageHeader } from '../../components/states';
 import { useWorkspace } from '../../providers/workspace-provider';
@@ -13,6 +16,11 @@ import {
   type LedgerRecord,
 } from '../../services/ledger-api';
 import { newIdempotencyKey } from '../../services/tasks-api';
+import { tasksApi } from '../../services/tasks-api';
+import { projectsApi } from '../../services/projects-api';
+import { kbApi } from '../../services/kb-api';
+import { LedgerAnalytics } from './ledger-analytics';
+import { Link } from 'react-router-dom';
 import { effectLabel, formatMinutes, groupByDate, shouldSubmitOnEnter } from './ledger-utils';
 import styles from './ledger.module.css';
 
@@ -36,12 +44,19 @@ export function LedgerPage(): React.JSX.Element {
   const [savedMinutes, setSavedMinutes] = useState('');
   const [effect, setEffect] = useState('4');
   const [projectId, setProjectId] = useState('');
-  const [filters, setFilters] = useState<{ tool: string; scene: string; from: string; to: string }>({
-    tool: '',
-    scene: '',
-    from: '',
-    to: '',
-  });
+  const [entryId, setEntryId] = useState(''),
+    [recordDate, setRecordDate] = useState('');
+  const [editing, setEditing] = useState<LedgerRecord | null>(null);
+  const [conflict, setConflict] = useState<LedgerRecord | null>(null);
+  useRefreshGuard(!!note);
+  const [filters, setFilters] = useState<{ tool: string; scene: string; from: string; to: string }>(
+    {
+      tool: '',
+      scene: '',
+      from: '',
+      to: '',
+    },
+  );
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [extraRecords, setExtraRecords] = useState<LedgerRecord[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
@@ -57,6 +72,7 @@ export function LedgerPage(): React.JSX.Element {
     enabled: workspaceId !== '',
   });
 
+  useContentTiming(listQuery.isSuccess);
   const summaryQuery = useQuery({
     queryKey: ['ws', workspaceId, 'ledger', 'summary', filters.from, filters.to, projectId],
     queryFn: () =>
@@ -71,6 +87,11 @@ export function LedgerPage(): React.JSX.Element {
   const projectsQuery = useQuery({
     queryKey: ['ws', workspaceId, 'projects', { forLedger: true }],
     queryFn: () => fetchProjectsForSelect(workspaceId),
+    enabled: workspaceId !== '',
+  });
+  const entriesQuery = useQuery({
+    queryKey: ['ws', workspaceId, 'entries', 'ledger-select'],
+    queryFn: () => kbApi.list(workspaceId, { limit: 100 }),
     enabled: workspaceId !== '',
   });
 
@@ -104,20 +125,34 @@ export function LedgerPage(): React.JSX.Element {
 
   const createMutation = useMutation({
     mutationFn: (input: CreateLedgerInput) => {
+      if (editing) return ledgerApi.update(workspaceId, editing, input);
       retryKey.current ??= newIdempotencyKey();
       return ledgerApi.create(workspaceId, input, retryKey.current);
     },
     onSuccess: () => {
       retryKey.current = null;
       setNote('');
+      setEditing(null);
+      setConflict(null);
+      setEntryId('');
+      setProjectId('');
+      setRecordDate('');
       setFormError(null);
       invalidate();
       noteRef.current?.focus();
     },
-    onError: (error) => setFormError(describeApiError(error)),
+    onError: (error) => {
+      setFormError(describeApiError(error));
+      if (editing && error instanceof ApiError && error.isConflict)
+        void apiClient
+          .get<LedgerRecord>('/workspaces/' + workspaceId + '/ledger/' + editing.id)
+          .then(setConflict)
+          .catch((error) => setFormError(describeApiError(error)));
+    },
   });
 
   const submit = (): void => {
+    if (createMutation.isPending || !writable) return;
     setFormError(null);
     const text = note.trim();
     if (text === '') {
@@ -130,19 +165,23 @@ export function LedgerPage(): React.JSX.Element {
       return;
     }
     const savedValue = savedMinutes.trim() === '' ? undefined : Number(savedMinutes);
-    if (savedValue !== undefined && (!Number.isInteger(savedValue) || savedValue < 0 || savedValue > 1440)) {
+    if (
+      savedValue !== undefined &&
+      (!Number.isInteger(savedValue) || savedValue < 0 || savedValue > 1440)
+    ) {
       setFormError('节省分钟需为 0～1440 的整数');
       return;
     }
     createMutation.mutate({
-      recordDate: businessDate,
+      recordDate: recordDate || businessDate,
       tool,
       scene,
       minutes: minutesValue,
       effect: Number(effect),
       note: text,
       ...(savedValue === undefined ? {} : { savedMinutes: savedValue }),
-      ...(projectId === '' ? {} : { projectId }),
+      projectId: projectId || null,
+      entryId: entryId || null,
     });
   };
 
@@ -182,7 +221,9 @@ export function LedgerPage(): React.JSX.Element {
               <span>{summary.count} 条</span>
               <span>投入 {formatMinutes(summary.totalMinutes)}</span>
               <span>节省 {formatMinutes(summary.totalSavedMinutes)}</span>
-              <span>{summary.averageEffect === null ? '暂无评分' : `平均效果 ${summary.averageEffect}`}</span>
+              <span>
+                {summary.averageEffect === null ? '暂无评分' : `平均效果 ${summary.averageEffect}`}
+              </span>
             </div>
           )
         }
@@ -194,7 +235,27 @@ export function LedgerPage(): React.JSX.Element {
         </p>
       ) : null}
 
-      <section className={styles.composer} aria-label="新增台账记录">
+      <LedgerAnalytics workspaceId={workspaceId} businessDate={businessDate} />
+      <section className={styles.composer} aria-label="台账记录表单">
+        <h2>{editing ? '编辑台账记录' : '新增台账记录'}</h2>
+        {conflict ? (
+          <section role="alert">
+            <h3>服务器台账版本 {conflict.version}</h3>
+            <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+              {JSON.stringify(conflict, null, 2)}
+            </pre>
+            <p>本地输入仍保留；比较并修改后采用新版本，再保存合并。</p>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(conflict);
+                setConflict(null);
+              }}
+            >
+              采用版本 {conflict.version}，保留本地输入
+            </button>
+          </section>
+        ) : null}
         <label className={styles.noteField}>
           <span className={styles.label}>用 AI 做了什么（Enter 保存，Shift+Enter 换行）</span>
           <textarea
@@ -219,15 +280,30 @@ export function LedgerPage(): React.JSX.Element {
               submit();
             }}
             placeholder="例如：让 Claude 重构了会话守卫，并补了 6 个用例"
-            disabled={!writable}
+            disabled={!writable || createMutation.isPending}
             data-testid="ledger-note"
           />
         </label>
 
         <div className={styles.fieldRow}>
           <label className={styles.field}>
+            记录日期
+            <input
+              className={styles.input}
+              type="date"
+              max={businessDate}
+              value={recordDate || businessDate}
+              onChange={(e) => setRecordDate(e.target.value)}
+            />
+          </label>
+          <label className={styles.field}>
             <span className={styles.label}>工具</span>
-            <select className={styles.input} value={tool} onChange={(event) => setTool(event.target.value)} disabled={!writable}>
+            <select
+              className={styles.input}
+              value={tool}
+              onChange={(event) => setTool(event.target.value)}
+              disabled={!writable}
+            >
               {TOOL_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -237,7 +313,12 @@ export function LedgerPage(): React.JSX.Element {
           </label>
           <label className={styles.field}>
             <span className={styles.label}>场景</span>
-            <select className={styles.input} value={scene} onChange={(event) => setScene(event.target.value)} disabled={!writable}>
+            <select
+              className={styles.input}
+              value={scene}
+              onChange={(event) => setScene(event.target.value)}
+              disabled={!writable}
+            >
               {SCENE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -272,7 +353,12 @@ export function LedgerPage(): React.JSX.Element {
           </label>
           <label className={styles.field}>
             <span className={styles.label}>效果（1～5）</span>
-            <select className={styles.input} value={effect} onChange={(event) => setEffect(event.target.value)} disabled={!writable}>
+            <select
+              className={styles.input}
+              value={effect}
+              onChange={(event) => setEffect(event.target.value)}
+              disabled={!writable}
+            >
               {[1, 2, 3, 4, 5].map((value) => (
                 <option key={value} value={String(value)}>
                   {value} · {effectLabel(value)}
@@ -296,6 +382,21 @@ export function LedgerPage(): React.JSX.Element {
               ))}
             </select>
           </label>
+          <label className={styles.field}>
+            关联知识（可选）
+            <select
+              className={styles.input}
+              value={entryId}
+              onChange={(e) => setEntryId(e.target.value)}
+            >
+              <option value="">不关联</option>
+              {entriesQuery.data?.entries.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.title || '无标题草稿'}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {formError === null ? null : (
@@ -305,9 +406,29 @@ export function LedgerPage(): React.JSX.Element {
         )}
 
         <div className={styles.composerActions}>
-          <button type="button" className={styles.primary} onClick={submit} disabled={!writable || createMutation.isPending}>
-            {createMutation.isPending ? '保存中…' : '保存记录'}
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={submit}
+            disabled={!writable || createMutation.isPending}
+          >
+            {createMutation.isPending ? '保存中…' : editing ? '保存修改' : '保存记录'}
           </button>
+          {editing ? (
+            <button
+              className={styles.secondary}
+              onClick={() => {
+                setEditing(null);
+                setNote('');
+                setEntryId('');
+                setProjectId('');
+                setRecordDate('');
+                setFormError(null);
+              }}
+            >
+              取消编辑
+            </button>
+          ) : null}
           {!writable ? <span className={styles.hint}>只读角色，不能新增记录。</span> : null}
         </div>
       </section>
@@ -417,6 +538,31 @@ export function LedgerPage(): React.JSX.Element {
                 </div>
                 {record.note === null ? null : <p className={styles.entryNote}>{record.note}</p>}
                 <div className={styles.entryActions}>
+                  {record.projectId ? (
+                    <Link to={'/projects/' + record.projectId}>关联项目</Link>
+                  ) : null}
+                  {record.entryId ? <Link to={'/kb/' + record.entryId}>关联知识</Link> : null}
+                  <button
+                    type="button"
+                    className={styles.small}
+                    disabled={!writable || createMutation.isPending}
+                    onClick={() => {
+                      setEditing(record);
+                      retryKey.current = null;
+                      setNote(record.note ?? '');
+                      setTool(record.tool);
+                      setScene(record.scene);
+                      setMinutes(String(record.minutes));
+                      setSavedMinutes(String(record.savedMinutes));
+                      setEffect(String(record.effect));
+                      setProjectId(record.projectId ?? '');
+                      setEntryId(record.entryId ?? '');
+                      setRecordDate(record.recordDate);
+                      noteRef.current?.focus();
+                    }}
+                  >
+                    编辑
+                  </button>
                   <button
                     type="button"
                     className={styles.small}
@@ -443,7 +589,7 @@ export function LedgerPage(): React.JSX.Element {
       {confirming === null ? null : (
         <div className={styles.confirm} role="alertdialog" aria-label="确认删除台账记录">
           <p className={styles.confirmTitle}>删除这条记录？</p>
-          <p className={styles.hint}>记录会进入回收站（F34 提供恢复），不会影响项目与任务。</p>
+          <p className={styles.hint}>记录会进入回收站，可在设置中恢复。</p>
           <div className={styles.composerActions}>
             <button
               type="button"
@@ -477,13 +623,13 @@ export function LedgerPage(): React.JSX.Element {
 
 /** 输入默认用今天（业务日，由 /dashboard/today 提供）；拉取失败时退回本地日期 */
 async function tasksDashboard(workspaceId: string): Promise<{ businessDate: string }> {
-  const { tasksApi } = await import('../../services/tasks-api');
   const dashboard = await tasksApi.dashboard(workspaceId);
   return { businessDate: dashboard.businessDate };
 }
 
-async function fetchProjectsForSelect(workspaceId: string): Promise<{ id: string; name: string }[]> {
-  const { projectsApi } = await import('../../services/projects-api');
+async function fetchProjectsForSelect(
+  workspaceId: string,
+): Promise<{ id: string; name: string }[]> {
   const result = await projectsApi.list(workspaceId, { filter: 'active', limit: 50 });
   return result.projects.map((project) => ({ id: project.id, name: project.name }));
 }

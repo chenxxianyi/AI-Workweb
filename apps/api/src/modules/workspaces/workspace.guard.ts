@@ -53,12 +53,23 @@ export class WorkspaceGuard implements CanActivate {
       where: { workspaceId_userId: { workspaceId, userId: auth.userId } },
       include: {
         workspace: {
-          select: { id: true, name: true, timezone: true, status: true, version: true, createdBy: true },
+          select: {
+            id: true,
+            name: true,
+            timezone: true,
+            status: true,
+            version: true,
+            createdBy: true,
+          },
         },
       },
     });
 
-    if (membership === null || membership.status !== 'active' || membership.workspace.status !== 'active') {
+    if (
+      membership === null ||
+      membership.status !== 'active' ||
+      membership.workspace.status !== 'active'
+    ) {
       throw new ApiException('NOT_FOUND', '空间不存在或无权访问');
     }
 
@@ -71,8 +82,7 @@ export class WorkspaceGuard implements CanActivate {
     (request as WorkspaceRequest).workspace = workspaceContextValue;
 
     const required = Reflect.getMetadata(WORKSPACE_ROLE_KEY, context.getHandler()) as
-      | WorkspaceRole
-      | undefined;
+      WorkspaceRole | undefined;
     if (required !== undefined && !roleAtLeast(membership.role, required)) {
       throw new ApiException('FORBIDDEN', '当前角色无权执行该操作');
     }

@@ -1,0 +1,130 @@
+{
+  "database": "aiwb_test",
+  "host": "127.0.0.1",
+  "startedAt": "2026-11-04T05:15:09.505Z",
+  "suites": 24,
+  "passed": 24,
+  "expected": 24,
+  "results": [
+    {
+      "file": "auth-check.ts",
+      "exitCode": 0,
+      "ms": 6385
+    },
+    {
+      "file": "auth-http-check.ts",
+      "exitCode": 0,
+      "ms": 3798
+    },
+    {
+      "file": "session-check.ts",
+      "exitCode": 0,
+      "ms": 8817
+    },
+    {
+      "file": "workspace-check.ts",
+      "exitCode": 0,
+      "ms": 4840
+    },
+    {
+      "file": "project-check.ts",
+      "exitCode": 0,
+      "ms": 4217
+    },
+    {
+      "file": "task-check.ts",
+      "exitCode": 0,
+      "ms": 4596
+    },
+    {
+      "file": "dashboard-check.ts",
+      "exitCode": 0,
+      "ms": 4363
+    },
+    {
+      "file": "logs-check.ts",
+      "exitCode": 0,
+      "ms": 4695
+    },
+    {
+      "file": "entry-check.ts",
+      "exitCode": 0,
+      "ms": 4343
+    },
+    {
+      "file": "revision-check.ts",
+      "exitCode": 0,
+      "ms": 3532
+    },
+    {
+      "file": "search-check.ts",
+      "exitCode": 0,
+      "ms": 7582
+    },
+    {
+      "file": "usage-check.ts",
+      "exitCode": 0,
+      "ms": 4627
+    },
+    {
+      "file": "promote-check.ts",
+      "exitCode": 0,
+      "ms": 4636
+    },
+    {
+      "file": "ledger-check.ts",
+      "exitCode": 0,
+      "ms": 3982
+    },
+    {
+      "file": "analytics-check.ts",
+      "exitCode": 0,
+      "ms": 3715
+    },
+    {
+      "file": "exports-check.ts",
+      "exitCode": 0,
+      "ms": 5929
+    },
+    {
+      "file": "imports-preview-check.ts",
+      "exitCode": 0,
+      "ms": 4874
+    },
+    {
+      "file": "imports-commit-check.ts",
+      "exitCode": 0,
+      "ms": 5839
+    },
+    {
+      "file": "transfer-roundtrip-check.ts",
+      "exitCode": 0,
+      "ms": 4920
+    },
+    {
+      "file": "preferences-check.ts",
+      "exitCode": 0,
+      "ms": 6056
+    },
+    {
+      "file": "maintenance-check.ts",
+      "exitCode": 0,
+      "ms": 9607
+    },
+    {
+      "file": "offline.integration.ts",
+      "exitCode": 0,
+      "ms": 5972
+    },
+    {
+      "file": "conflicts.integration.ts",
+      "exitCode": 0,
+      "ms": 3914
+    },
+    {
+      "file": "isolation.integration.ts",
+      "exitCode": 0,
+      "ms": 5048
+    }
+  ]
+}

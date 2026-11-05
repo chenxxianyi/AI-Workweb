@@ -4,15 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '../../components/states';
 import { useWorkspace } from '../../providers/workspace-provider';
 import { describeApiError } from '../../services/auth-api';
-import {
-  kbApi,
-  type EntryInput,
-  type EntryStatus,
-  type EntryType,
-} from '../../services/kb-api';
+import { kbApi, type EntryInput, type EntryStatus, type EntryType } from '../../services/kb-api';
 import { newIdempotencyKey } from '../../services/tasks-api';
 import { STATUS_LABEL, TYPE_LABEL, TYPE_OPTIONS, shouldIgnoreShortcut } from './kb-utils';
 import { EntryEditor } from './entry-editor';
+import { useAuth } from '../../providers/auth-provider';
+import { deleteLocalRecord } from '../../offline/queue';
+import {useContentTiming} from '../../services/content-timing';
+import { OrganizationSummary } from '../search/search-panel';
 import styles from './kb.module.css';
 
 const STATUS_TABS: { value: '' | EntryStatus; label: string }[] = [
@@ -29,6 +28,7 @@ const STATUS_TABS: { value: '' | EntryStatus; label: string }[] = [
  * 单键 `n` 在非输入态打开新建面板；在输入框里打字母 N 不会触发（F20-03）。
  */
 export function KnowledgePage(): React.JSX.Element {
+  const { user } = useAuth();
   const { workspace, can } = useWorkspace();
   const workspaceId = workspace?.workspaceId ?? '';
   const queryClient = useQueryClient();
@@ -89,6 +89,7 @@ export function KnowledgePage(): React.JSX.Element {
       return kbApi.create(workspaceId, input, retryKey.current);
     },
     onSuccess: (entry) => {
+      if (user) void deleteLocalRecord('drafts', user.id + ':' + workspaceId + ':entry:new');
       retryKey.current = null;
       setComposing(false);
       setFormError(null);
@@ -111,6 +112,7 @@ export function KnowledgePage(): React.JSX.Element {
   };
 
   const entries = listQuery.data?.entries ?? [];
+  useContentTiming(listQuery.isSuccess);
 
   return (
     <>
@@ -135,10 +137,12 @@ export function KnowledgePage(): React.JSX.Element {
         }
       />
 
+      <OrganizationSummary />
       {composing ? (
         <section className={styles.panel} aria-label="新建知识条目">
           <h2 className={styles.panelTitle}>新建条目</h2>
           <EntryEditor
+            {...(user ? { localScope: { userId: user.id, workspaceId } } : {})}
             mode="create"
             submitting={createMutation.isPending}
             error={formError}
@@ -165,7 +169,11 @@ export function KnowledgePage(): React.JSX.Element {
         </div>
         <label className={styles.field}>
           <span className="sr-only">类型</span>
-          <select className={styles.input} value={type} onChange={(event) => updateParams({ type: event.target.value })}>
+          <select
+            className={styles.input}
+            value={type}
+            onChange={(event) => updateParams({ type: event.target.value })}
+          >
             <option value="">全部类型</option>
             {TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

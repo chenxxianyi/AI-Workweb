@@ -1,0 +1,29 @@
+{
+  "verifiedAt": "2026-11-05T05:20:55.0024174Z",
+  "result": "passed",
+  "completed": 52,
+  "snapshotFiles": 24457,
+  "historyVersions": 60,
+  "historyFiles": 25983,
+  "failedHistoryPreserved": 1,
+  "localDocuments": 181,
+  "localLinks": 1005,
+  "brokenLinks": 0,
+  "production": {
+    "release": "local-final-v5",
+    "monitorRunning": true,
+    "url": "http://127.0.0.1:3000",
+    "status": "ready"
+  },
+  "observation": {
+    "thirtyMinutes": "passed",
+    "twentyFourHours": "pending",
+    "resultPath": ".data/runtime/production/observation-24h.json",
+    "failedSamples": 0,
+    "samples": 56,
+    "alertSamples": 0
+  },
+  "snapshot": "全栈开发任务/存档/FS052/版本/20261105-131747-940-703fe45b",
+  "scope": "封存后补充核验，不修改快照files目录和manifest",
+  "note": "本机技术交付完成；24小时观察另记，Safari和异机灾备为后续扩展"
+}

@@ -9,7 +9,7 @@
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
   "exclude": ["dist", "node_modules"]

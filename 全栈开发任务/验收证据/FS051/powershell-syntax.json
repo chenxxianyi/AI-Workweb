@@ -1,0 +1,26 @@
+[
+  {
+    "file": "dev-db.ps1",
+    "syntax": "passed"
+  },
+  {
+    "file": "local-workbench.ps1",
+    "syntax": "passed"
+  },
+  {
+    "file": "monitor-run.ps1",
+    "syntax": "passed"
+  },
+  {
+    "file": "native-run.ps1",
+    "syntax": "passed"
+  },
+  {
+    "file": "native-stop.ps1",
+    "syntax": "passed"
+  },
+  {
+    "file": "保存全栈存档.ps1",
+    "syntax": "passed"
+  }
+]

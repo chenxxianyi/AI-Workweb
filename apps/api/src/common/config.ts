@@ -5,7 +5,7 @@ import { z } from 'zod';
  * 只有明确的开发默认值（端口、日志级别）才允许缺省。
  */
 const booleanFromEnv = z
-  .union([z.boolean(), z.string()])
+  .union([z.boolean(), z.enum(['true', 'false'])])
   .transform((value) => (typeof value === 'boolean' ? value : value.toLowerCase() === 'true'));
 
 const configSchema = z.object({
@@ -16,8 +16,20 @@ const configSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL 不能为空：请从 .env.example 复制 .env'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   COOKIE_SECURE: booleanFromEnv.pipe(z.boolean()).default(false),
-  SESSION_COOKIE_NAME: z.string().min(1).default('sfs_session'),
-  SESSION_IDLE_MINUTES: z.coerce.number().int().min(5).max(60 * 24 * 30).default(1440),
+  SESSION_COOKIE_NAME: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,100}$/)
+    .default('sfs_session'),
+  CSRF_COOKIE_NAME: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,100}$/)
+    .default('sfs_csrf'),
+  SESSION_IDLE_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(60 * 24 * 30)
+    .default(1440),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().int().min(1).max(90).default(7),
   RATE_LIMIT_LOGIN_PER_MINUTE: z.coerce.number().int().min(1).max(1000).default(10),
   RATE_LIMIT_SEARCH_PER_MINUTE: z.coerce.number().int().min(1).max(1000).default(60),

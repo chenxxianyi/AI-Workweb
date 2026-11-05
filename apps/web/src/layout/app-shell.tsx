@@ -4,6 +4,10 @@ import { useAuth } from '../providers/auth-provider';
 import { useWorkspace } from '../providers/workspace-provider';
 import { useTheme } from '../providers/theme-provider';
 import { ApiStatusPill } from '../components/api-status-pill';
+import { GlobalTools } from '../features/search/global-tools';
+import { SpaceReminder } from '../features/settings/preferences/space-preferences';
+import { SnapshotStatus } from '../offline/snapshot-provider';
+import { ApplicationUpdate } from '../offline/application-update';
 import {
   KnowledgeIcon,
   LedgerIcon,
@@ -25,6 +29,7 @@ const NAV_ITEMS = [
 ] as const;
 
 const ROLE_LABEL: Record<string, string> = { owner: 'Owner', editor: 'Editor', viewer: 'Viewer' };
+const canCapture = (role: string | null): boolean => role === 'owner' || role === 'editor';
 
 /**
  * 应用壳（F07 / F11）：顶栏（空间切换、搜索入口、API 状态、主题、账号）+ 侧边导航 + 主内容 + 移动底部标签栏。
@@ -35,7 +40,7 @@ export function AppShell(): React.JSX.Element {
   const { user, logout } = useAuth();
   const { mode, resolved, setMode } = useTheme();
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false),[logoutError,setLogoutError]=useState('');
 
   const toggleTheme = (): void => {
     setMode(mode === 'system' ? (resolved === 'dark' ? 'light' : 'dark') : mode === 'dark' ? 'light' : 'dark');
@@ -47,6 +52,8 @@ export function AppShell(): React.JSX.Element {
     try {
       await logout();
       navigate('/login', { replace: true });
+    } catch(error) {
+      setLogoutError((error as Error).message);
     } finally {
       setLoggingOut(false);
     }
@@ -59,6 +66,7 @@ export function AppShell(): React.JSX.Element {
       </a>
 
       <header className={styles.topbar}>
+        {logoutError?<p role="alert">{logoutError}</p>:null}
         <span className={styles.brand}>AI 编程工作台</span>
 
         <label className={styles.workspaceSwitch}>
@@ -85,7 +93,8 @@ export function AppShell(): React.JSX.Element {
           </span>
         ) : null}
 
-        <NavLink to="/search" className={styles.searchLink} aria-label="打开全局搜索">
+        <button type="button" className={styles.iconButton} aria-label="快速捕获" title="快速捕获（N）" onClick={() => window.dispatchEvent(new Event('aiwb:open-capture'))} disabled={!canCapture(role)}><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></button>
+        <NavLink to="/search" className={styles.searchLink} aria-label="打开全局搜索" onClick={(event) => { event.preventDefault(); window.dispatchEvent(new Event('aiwb:open-search')); }}>
           <SearchIcon />
           <span className={styles.searchLabel}>搜索</span>
           <kbd className={styles.kbd}>Ctrl K</kbd>
@@ -119,10 +128,12 @@ export function AppShell(): React.JSX.Element {
       </header>
 
       <nav className={styles.sidebar} aria-label="主导航">
+        <NavLink to="/offline">本机草稿与待同步</NavLink>
         {NAV_ITEMS.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
+            aria-label={label}
             className={({ isActive }) => (isActive ? `${styles.navItem} ${styles.navActive}` : styles.navItem)}
           >
             <Icon />
@@ -131,7 +142,11 @@ export function AppShell(): React.JSX.Element {
         ))}
       </nav>
 
+      <GlobalTools key={(user?.id??'')+workspace?.workspaceId} userId={user?.id}/>
       <main id="main-content" className={styles.main} tabIndex={-1}>
+        <SnapshotStatus />
+        <ApplicationUpdate />
+        <SpaceReminder />
         <Outlet />
       </main>
 
@@ -140,6 +155,7 @@ export function AppShell(): React.JSX.Element {
           <NavLink
             key={to}
             to={to}
+            aria-label={label}
             className={({ isActive }) => (isActive ? `${styles.bottomItem} ${styles.navActive}` : styles.bottomItem)}
           >
             <Icon />

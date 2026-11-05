@@ -160,7 +160,7 @@
 @media (max-width: 767px) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--header-h) minmax(0, 1fr) 56px;
+    grid-template-rows: var(--header-h) minmax(0, 1fr) calc(56px + env(safe-area-inset-bottom));
     grid-template-areas:
       'topbar'
       'main'
@@ -177,15 +177,24 @@
 
   .topbar {
     padding: 0 var(--space-2);
-    gap: var(--space-2);
+    gap: 4px;
+  }
+  .searchLink {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .logoutButton {
+    padding: 0 8px;
   }
 
   .brand {
-    font-size: var(--text-xs);
+    display: none;
   }
 
   .select {
-    max-width: 104px;
+    max-width: 96px;
     /* 375px 下避免 iOS 聚焦缩放（R25：输入字号 ≥16px） */
     font-size: 16px;
   }
@@ -195,6 +204,7 @@
     display: flex;
     background: var(--surface);
     border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .bottomItem {

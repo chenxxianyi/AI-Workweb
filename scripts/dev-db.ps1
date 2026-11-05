@@ -1,27 +1,29 @@
-﻿# 本地开发数据库（项目内隔离实例）
+# 本机项目数据库（开发/测试/预发布/正式使用独立库）
 #
-# 用途：为开发与集成测试提供真实 PostgreSQL 17，不触碰本机 5432 上的既有服务。
+# 用途：项目内真实 PostgreSQL 17，仅127.0.0.1；不触碰5432既有服务。现含正式数据，禁止reset。
 # 数据目录：<repo>/.data/pgdata（.gitignore 已排除，不进快照）
 # 端口：55432，仅监听 127.0.0.1
 #
 # 用法：
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-db.ps1 init
+#   pwsh -NoProfile -File scripts/dev-db.ps1 init
 #   ... start | stop | status | reset
 #
-# 说明：本机执行策略为 Restricted，故统一用 -ExecutionPolicy Bypass 单次调用（不修改系统策略）。
+# 执行遵循当前 PowerShell 策略，不覆盖系统执行策略。
 
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
     [ValidateSet('init', 'start', 'stop', 'status', 'reset')]
-    [string]$Action = 'status'
+    [string]$Action = 'status',
+    [ValidateRange(1024,65535)][int]$Port=55432,
+    [string]$DataSubdirectory='.data\pgdata'
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$dataDir = Join-Path $repoRoot '.data\pgdata'
-$logFile = Join-Path $repoRoot '.data\pg.log'
-$port = 55432
+$dataDir = [IO.Path]::GetFullPath((Join-Path $repoRoot $DataSubdirectory))
+if(-not $dataDir.StartsWith((Join-Path $repoRoot '.data')+[IO.Path]::DirectorySeparatorChar)){throw '数据目录必须在本项目.data内'}
+$logFile = Join-Path $repoRoot ('.data\pg-'+$Port+'.log')
 $role = 'aiwb'
 $databases = @('aiwb_dev', 'aiwb_test')
 $defaultPassword = 'aiwb_local_dev'
@@ -47,7 +49,7 @@ function Get-DevPassword {
         $line = Get-Content -LiteralPath $envFile |
             Where-Object { $_ -match '^DATABASE_URL=' } |
             Select-Object -First 1
-        if ($line -and $line -match '://[^:]+:([^@]+)@') { return $Matches[1] }
+        if ($line -and $line -match '://[^:]+:([^@]+)@') { return [Uri]::UnescapeDataString($Matches[1]) }
     }
     return $defaultPassword
 }
@@ -86,15 +88,27 @@ function Initialize-Cluster {
     $dbs = $databases
     $p = $port
     if (-not (Test-Path -LiteralPath $data)) {
+        if(Test-Ready){throw '目标端口已有服务，拒绝用新目录接管既有数据库'}
+        if($pass -eq $defaultPassword -or $pass.Length -lt 20){throw '新集群必须先生成随机强口令.env；执行node scripts/setup-local-env.mjs，禁止使用默认开发口令。'}
         New-Item -ItemType Directory -Path (Split-Path -Parent $data) -Force | Out-Null
-        & $initdb -D $data -U $role --auth-local=trust --auth-host=scram-sha-256 -E UTF8 --no-locale | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw 'initdb 失败' }
+        $passFile=[IO.Path]::GetFullPath((Join-Path $repoRoot ('.data/initdb-pass-'+[Guid]::NewGuid().ToString('N')+'.tmp')))
+        if(-not $passFile.StartsWith($repoRoot+[IO.Path]::DirectorySeparatorChar)){throw '临时路径越界'}
+        New-Item -ItemType File -Path $passFile | Out-Null
+        & icacls $passFile /inheritance:r /grant:r "$env:USERDOMAIN\$env:USERNAME`:F" 'SYSTEM:F' | Out-Null
+        if($LASTEXITCODE){throw '临时口令ACL保护失败'}
+        try {Set-Content -LiteralPath $passFile -Value $pass -Encoding ASCII
+          & $initdb -D $data -U $role --auth-local=scram-sha-256 --auth-host=scram-sha-256 --pwfile=$passFile -E UTF8 --no-locale | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'initdb 失败' }
+        }finally{Remove-Item -LiteralPath $passFile -Force}
         $config = @("`n# --- dev instance (scripts/dev-db.ps1) ---", "port = $p", "listen_addresses = '127.0.0.1'", "timezone = 'Asia/Shanghai'") -join "`n"
         Add-Content -LiteralPath (Join-Path $data 'postgresql.conf') -Value $config -Encoding ASCII
         Write-Output "已初始化数据目录：$data"
     }
     else {
         Write-Output "数据目录已存在：$data"
+        if (-not (Test-Ready)) { throw '已有集群请执行start；init不修改既有认证配置。' }
+        Invoke-Sql 'SELECT 1' | Out-Null
+        Write-Output '既有集群认证通过；未改写口令或pg_hba。'
     }
 
     if (-not (Test-Ready)) {
@@ -104,20 +118,17 @@ function Initialize-Cluster {
     }
     Write-Output "数据库已启动：127.0.0.1:$p"
 
-    # 设置本地开发口令（scram 认证，仅 127.0.0.1）
-    $hba = Join-Path $data 'pg_hba.conf'
-    $original = Get-Content -LiteralPath $hba
-    $trusted = $original | ForEach-Object {
-        if ($_ -match '^host\s+all\s+all\s+127\.0\.0\.1/32') { 'host    all             all             127.0.0.1/32            trust' } else { $_ }
+    Invoke-Sql 'SELECT 1' | Out-Null
+    # Windows PG的GUC路径可能采用系统ACP字节；textsend避免将路径误当UTF8再转换。
+    $directoryHex=[string](Invoke-Sql "SELECT encode(textsend(current_setting('data_directory')),'hex')")
+    $pathBytes=[Convert]::FromHexString($directoryHex)
+    $pathMatches=$false
+    foreach($encoding in @([Text.Encoding]::UTF8,[Text.Encoding]::GetEncoding(936))){
+      $actualData=[IO.Path]::GetFullPath($encoding.GetString($pathBytes)).TrimEnd('\','/')
+      if($actualData.Equals($dataDir.TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)){$pathMatches=$true}
     }
-    Set-Content -LiteralPath $hba -Value $trusted -Encoding ASCII
-    & $pgCtl -D $data reload | Out-Null
-    Start-Sleep -Milliseconds 600
-    Invoke-Sql "ALTER USER $role WITH PASSWORD '$pass'" | Out-Null
-    Set-Content -LiteralPath $hba -Value $original -Encoding ASCII
-    & $pgCtl -D $data reload | Out-Null
-    Start-Sleep -Milliseconds 600
-    Write-Output '已设置本地开发口令（仅 127.0.0.1，scram-sha-256）'
+    if(-not $pathMatches){throw '端口对应的数据目录不符，拒绝写入其他集群'}
+    Write-Output '随机强口令SCRAM认证通过；未改写pg_hba认证模式。'
 
     foreach ($db in $dbs) {
         $exists = Invoke-Sql "SELECT 1 FROM pg_database WHERE datname = '$db'"
@@ -153,8 +164,8 @@ switch ($Action) {
         exit ($(if (Test-Ready) { 0 } else { 1 }))
     }
     'reset' {
-        if (Test-Ready) { & $pgCtl -D $dataDir -m fast stop | Out-Null }
-        if (Test-Path -LiteralPath $dataDir) { Remove-Item -LiteralPath $dataDir -Recurse -Force }
-        Initialize-Cluster
+        throw 'reset已禁用：此集群现含本机正式数据。仅可通过独立测试库脚本重建测试库。'
     }
 }
+
+

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useContentTiming } from '../../services/content-timing';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState, ErrorState, LoadingState, Notice, PageHeader } from '../../components/states';
@@ -15,6 +16,14 @@ import {
   type ProjectInput,
 } from '../../services/projects-api';
 import { ProjectForm } from './project-form';
+import { useAuth } from '../../providers/auth-provider';
+import {
+  pendingProjectCreate,
+  submitProjectCreate,
+  expiredProjectCreate,
+  type ProjectCreateOperation,
+} from '../../services/project-create-operation';
+import { exportLocal } from '../../offline/queue';
 import styles from './projects.module.css';
 
 const FILTERS: { value: ProjectFilter; label: string }[] = [
@@ -38,24 +47,70 @@ export function ProjectsPage(): React.JSX.Element {
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<unknown>(null);
+  const { user } = useAuth(),
+    scope = (user?.id ?? '') + ':' + workspaceId;
+  const [loadedScope, setLoadedScope] = useState(''),
+    [pending, setPending] = useState<ProjectCreateOperation | null>(null);
+  const activePending = loadedScope === scope ? pending : null;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
+  useEffect(() => {
+    let active = true;
+    if (!user) return;
+    void pendingProjectCreate(user.id, workspaceId)
+      .then((value) => {
+        if (active) {
+          setPending(value);
+          setLoadedScope(scope);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setFormError(error);
+          setLoadedScope(scope);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id, workspaceId, scope]);
 
   const listQuery = useQuery({
     queryKey: [...queryKeys.projects(workspaceId, { filter, q: search })] as const,
-    queryFn: ({ signal }) => projectsApi.list(workspaceId, { filter, q: search, limit: 50, signal }),
+    queryFn: ({ signal }) =>
+      projectsApi.list(workspaceId, { filter, q: search, limit: 50, signal }),
     enabled: workspaceId !== '',
   });
 
   const createMutation = useMutation({
-    mutationFn: (input: ProjectInput) => projectsApi.create(workspaceId, input),
-    onSuccess: () => {
+    onMutate: () => ({ scope }),
+    mutationFn: (input: ProjectInput) => {
+      if (!user) throw Error('请先登录');
+      return submitProjectCreate(user.id, workspaceId, input);
+    },
+    onSuccess: (_result, _input, context) => {
+      if (context?.scope !== currentScope.current) return;
       setCreating(false);
+      setPending(null);
       setFormError(null);
       void queryClient.invalidateQueries({ queryKey: ['ws', workspaceId, 'projects'] });
     },
-    onError: (error) => setFormError(error),
+    onError: (error, _input, context) => {
+      if (context?.scope !== currentScope.current) return;
+      setFormError(error);
+      if (user)
+        void pendingProjectCreate(user.id, workspaceId)
+          .then((value) => {
+            if (currentScope.current === context.scope) setPending(value);
+          })
+          .catch((error) => {
+            if (currentScope.current === context.scope) setFormError(error);
+          });
+    },
   });
 
   const projects = listQuery.data?.projects ?? [];
+  useContentTiming(listQuery.isSuccess);
   const writable = can('business.write');
 
   return (
@@ -68,6 +123,7 @@ export function ProjectsPage(): React.JSX.Element {
             <button
               type="button"
               className={styles.primary}
+              disabled={loadedScope !== scope || !!activePending}
               onClick={() => {
                 setFormError(null);
                 setCreating((current) => !current);
@@ -81,7 +137,26 @@ export function ProjectsPage(): React.JSX.Element {
         }
       />
 
-      {creating ? (
+      {activePending ? (
+        <section className={styles.panel} aria-label="待确认的项目创建">
+          <h2>确认上次项目创建</h2>
+          <p>
+            原项目：{activePending.input.name}。使用原内容与原幂等键确认；不会重复新建。
+            {expiredProjectCreate(activePending) ? '记录超过7天，请先导出并人工核对。' : ''}
+          </p>
+          <button
+            disabled={createMutation.isPending || expiredProjectCreate(activePending)}
+            onClick={() => createMutation.mutate(activePending.input)}
+          >
+            用原内容确认创建
+          </button>
+          <button onClick={() => exportLocal(activePending, '待确认项目创建.json')}>
+            导出原提交记录
+          </button>
+          {formError ? <p role="alert">{describeApiError(formError)}</p> : null}
+        </section>
+      ) : null}
+      {creating && !activePending ? (
         <section className={styles.panel} aria-label="新建项目">
           <h2 className={styles.panelTitle}>新建项目</h2>
           <ProjectForm
@@ -132,10 +207,16 @@ export function ProjectsPage(): React.JSX.Element {
 
       {listQuery.status === 'success' && projects.length === 0 ? (
         <EmptyState
-          title={filter === 'archived' ? '还没有归档项目' : filter === 'inactive' ? '没有 7 天无活动的项目' : '还没有项目'}
+          title={
+            filter === 'archived'
+              ? '还没有归档项目'
+              : filter === 'inactive'
+                ? '没有 7 天无活动的项目'
+                : '还没有项目'
+          }
           description={
             filter === 'active'
-              ? '新建一个项目，写下唯一的下一步；任务与知识会在后续任务中关联进来。'
+              ? '新建一个项目，写下下一步；在项目详情查看关联任务、知识与台账。'
               : '切换筛选条件可以查看其他项目。'
           }
           action={
@@ -161,15 +242,19 @@ export function ProjectsPage(): React.JSX.Element {
       ) : null}
 
       <div style={{ marginTop: 'var(--space-4)' }}>
-        <Notice>
-          任务、知识与台账的关联列表在 F16／F20／F26 接入；当前页面只展示项目本身的数据，不伪造关联内容。
-        </Notice>
+        <Notice>打开项目详情，查看任务、知识、台账与进度。</Notice>
       </div>
     </>
   );
 }
 
-function ProjectCard({ project, onOpen }: { project: Project; onOpen: () => void }): React.JSX.Element {
+function ProjectCard({
+  project,
+  onOpen,
+}: {
+  project: Project;
+  onOpen: () => void;
+}): React.JSX.Element {
   return (
     <li className={styles.card}>
       <div className={styles.cardHead}>
@@ -209,7 +294,11 @@ function ProjectCard({ project, onOpen }: { project: Project; onOpen: () => void
 
       <p className={styles.nextStep}>
         <span className={styles.nextStepLabel}>下一步</span>
-        {project.nextStep === '' ? <span className={styles.stackMuted}>未填写</span> : project.nextStep}
+        {project.nextStep === '' ? (
+          <span className={styles.stackMuted}>未填写</span>
+        ) : (
+          project.nextStep
+        )}
       </p>
 
       <Link className={styles.cardLink} to={`/projects/${project.id}`}>

@@ -1,15 +1,18 @@
 import { useState } from 'react';
+import { PromoteTaskButton } from '../tasks/task-detail-page';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState, ErrorState, LoadingState, Notice, PageHeader } from '../../components/states';
 import { useWorkspace } from '../../providers/workspace-provider';
 import { describeApiError } from '../../services/auth-api';
+import { ApiError } from '../../services/api-client';
 import {
   STAGE_LABEL,
   progressLabel,
   projectsApi,
   taskSummary,
   type ProjectInput,
+  type Project,
 } from '../../services/projects-api';
 import { ProjectForm } from './project-form';
 import styles from './projects.module.css';
@@ -30,6 +33,7 @@ export function ProjectDetailPage(): React.JSX.Element {
 
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState<unknown>(null);
+  const [conflict, setConflict] = useState<Project | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const overviewQuery = useQuery({
@@ -44,17 +48,25 @@ export function ProjectDetailPage(): React.JSX.Element {
   };
 
   const updateMutation = useMutation({
-    mutationFn: (input: ProjectInput) => {
+    mutationFn: ({ input, version }: { input: ProjectInput; version: number | undefined }) => {
       const project = overviewQuery.data?.project;
       if (project === undefined) throw new Error('项目尚未加载');
-      return projectsApi.update(workspaceId, projectId, input, project.version);
+      return projectsApi.update(workspaceId, projectId, input, version ?? project.version);
     },
     onSuccess: () => {
       setEditing(false);
       setEditError(null);
+      setConflict(null);
       invalidate();
     },
-    onError: (error) => setEditError(error),
+    onError: (error) => {
+      setEditError(error);
+      if (error instanceof ApiError && error.isConflict)
+        void projectsApi
+          .overview(workspaceId, projectId)
+          .then((result) => setConflict(result.project))
+          .catch(setEditError);
+    },
   });
 
   const archiveMutation = useMutation({
@@ -81,7 +93,7 @@ export function ProjectDetailPage(): React.JSX.Element {
   });
 
   if (overviewQuery.status === 'pending') return <LoadingState label="加载项目详情…" />;
-  if (overviewQuery.status === 'error') {
+  if (overviewQuery.status === 'error' && overviewQuery.data === undefined) {
     return (
       <ErrorState
         title="无法加载项目"
@@ -93,6 +105,7 @@ export function ProjectDetailPage(): React.JSX.Element {
     );
   }
 
+  if (overviewQuery.data === undefined) return <LoadingState />;
   const { project, tasks, entries, ledger } = overviewQuery.data;
   const writable = can('business.write');
 
@@ -110,7 +123,11 @@ export function ProjectDetailPage(): React.JSX.Element {
         actions={
           writable ? (
             <div className={styles.row}>
-              <button type="button" className={styles.secondary} onClick={() => setEditing((value) => !value)}>
+              <button
+                type="button"
+                className={styles.secondary}
+                onClick={() => setEditing((value) => !value)}
+              >
                 {editing ? '收起编辑' : '编辑'}
               </button>
               <button
@@ -145,11 +162,13 @@ export function ProjectDetailPage(): React.JSX.Element {
       {confirmDelete ? (
         <div className={styles.confirm} role="alertdialog" aria-label="确认删除项目">
           <p className={styles.confirmTitle}>删除「{project.name}」？</p>
-          <p className={styles.hint}>
-            这是软删除（进入回收站），不会删除关联的任务、知识与台账；恢复入口在 F34 提供。
-          </p>
+          <p className={styles.hint}>删除后可在设置的回收站恢复；关联任务、知识与台账会保留。</p>
           <div className={styles.actions}>
-            <button type="button" className={styles.secondary} onClick={() => setConfirmDelete(false)}>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => setConfirmDelete(false)}
+            >
               取消
             </button>
             <button
@@ -170,9 +189,10 @@ export function ProjectDetailPage(): React.JSX.Element {
           <ProjectForm
             mode="edit"
             initial={project}
+            conflict={conflict}
             submitting={updateMutation.isPending}
             error={editError}
-            onSubmit={(input) => updateMutation.mutate(input)}
+            onSubmit={(input, version) => updateMutation.mutate({ input, version })}
             onCancel={() => {
               setEditing(false);
               setEditError(null);
@@ -185,13 +205,17 @@ export function ProjectDetailPage(): React.JSX.Element {
         <h2 id="project-next-step" className={styles.blockTitle}>
           下一步
         </h2>
-        <p className={styles.nextStepValue}>{project.nextStep === '' ? '未填写' : project.nextStep}</p>
+        <p className={styles.nextStepValue}>
+          {project.nextStep === '' ? '未填写' : project.nextStep}
+        </p>
         {project.repo === null ? null : (
           <p className={styles.meta}>
             仓库：<code>{project.repo}</code>
           </p>
         )}
-        {project.stack.length === 0 ? null : <p className={styles.meta}>技术栈：{project.stack.join(' · ')}</p>}
+        {project.stack.length === 0 ? null : (
+          <p className={styles.meta}>技术栈：{project.stack.join(' · ')}</p>
+        )}
       </section>
 
       <div className={styles.threeBlocks}>
@@ -200,16 +224,16 @@ export function ProjectDetailPage(): React.JSX.Element {
             关联任务 <span className={styles.count}>{tasks.counts.total}</span>
           </h2>
           {tasks.recent.length === 0 ? (
-            <EmptyState
-              title="还没有关联任务"
-              description="任务模块在 F16 接入；当前是真实空数据，不是占位假数据。"
-            />
+            <EmptyState title="还没有关联任务" description="还没有关联到这个项目的任务。" />
           ) : (
             <ul className={styles.miniList}>
               {tasks.recent.map((task) => (
                 <li key={task.id} className={styles.miniItem}>
                   <span className={styles.priority}>{task.priority.toUpperCase()}</span>
-                  <span className={styles.miniTitle}>{task.title}</span>
+                  <Link className={styles.miniTitle} to={'/tasks/' + task.id}>
+                    {task.title}
+                  </Link>
+                  <PromoteTaskButton taskId={task.id} />
                   <span className={styles.miniMeta}>{task.status}</span>
                 </li>
               ))}
@@ -222,7 +246,7 @@ export function ProjectDetailPage(): React.JSX.Element {
             关联知识
           </h2>
           {entries.recent.length === 0 ? (
-            <EmptyState title="还没有关联知识" description="知识库在 F20 接入；当前显示真实空状态。" />
+            <EmptyState title="还没有关联知识" description="还没有关联到这个项目的知识。" />
           ) : (
             <ul className={styles.miniList}>
               {entries.recent.map((entry) => (
@@ -240,7 +264,7 @@ export function ProjectDetailPage(): React.JSX.Element {
             AI 台账 <span className={styles.count}>{ledger.count}</span>
           </h2>
           {ledger.count === 0 ? (
-            <EmptyState title="还没有台账记录" description="台账模块在 F26 接入；当前显示真实空状态。" />
+            <EmptyState title="还没有台账记录" description="还没有关联到这个项目的台账记录。" />
           ) : (
             <>
               <p className={styles.meta}>
@@ -263,9 +287,7 @@ export function ProjectDetailPage(): React.JSX.Element {
       </div>
 
       <div style={{ marginTop: 'var(--space-4)' }}>
-        <Notice>
-          当前阶段只展示真实数据：任务／知识／台账列表若为空，是因为对应模块尚未接入，不是加载失败。
-        </Notice>
+        <Notice>在创建或编辑业务记录时选择本项目，可在这里查看关联资料。</Notice>
       </div>
     </>
   );

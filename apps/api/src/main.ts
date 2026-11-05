@@ -7,6 +7,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { loadConfig, type AppConfig } from './common/config.js';
 import { logger } from './common/logger.js';
+import { serveWeb } from './common/static-web.js';
 
 /**
  * API 启动入口（F06/F08）：
@@ -35,6 +36,7 @@ app.useBodyParser('json', { limit: '128kb' });
 app.setGlobalPrefix('api/v1');
 app.enableShutdownHooks();
 app.disable('x-powered-by');
+if (process.env['WEB_DIST_DIR']) serveWeb(app, process.env['WEB_DIST_DIR']);
 
 await app.listen(config.API_PORT, config.API_HOST);
 logger.info(

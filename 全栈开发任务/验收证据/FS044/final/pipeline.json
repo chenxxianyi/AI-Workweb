@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "steps": [
+    {
+      "name": "toolchain",
+      "exitCode": 0,
+      "ms": 1435
+    },
+    {
+      "name": "migration-immutability",
+      "exitCode": 0,
+      "ms": 1
+    },
+    {
+      "name": "verify",
+      "exitCode": 0,
+      "ms": 38283
+    },
+    {
+      "name": "migration-empty-upgrade",
+      "exitCode": 0,
+      "ms": 3165
+    },
+    {
+      "name": "integration",
+      "exitCode": 0,
+      "ms": 113043
+    },
+    {
+      "name": "secrets",
+      "exitCode": 0,
+      "ms": 116
+    },
+    {
+      "name": "audit",
+      "exitCode": 0,
+      "ms": 2470
+    },
+    {
+      "name": "artifact",
+      "exitCode": 0,
+      "ms": 31607
+    }
+  ]
+}

@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Inject, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { ApiException } from '../../common/api-exception.js';
@@ -8,6 +20,7 @@ import { RateLimit } from '../../common/rate-limit.js';
 import { InviteService } from './invite.service.js';
 import { WorkspaceRoleRequired } from './permissions.js';
 import { workspaceContext } from './workspace.guard.js';
+import { assertIdempotencyKey } from '../../common/idempotency.js';
 import { WorkspaceService } from './workspace.service.js';
 
 const createWorkspaceSchema = z.strictObject({
@@ -47,7 +60,9 @@ export class WorkspaceController {
   ) {}
 
   @Get()
-  async list(@Req() request: Request): Promise<{ data: { workspaces: Awaited<ReturnType<WorkspaceService['listForUser']>> } }> {
+  async list(
+    @Req() request: Request,
+  ): Promise<{ data: { workspaces: Awaited<ReturnType<WorkspaceService['listForUser']>> } }> {
     const auth = requireRequestAuth(request);
     return { data: { workspaces: await this.workspaces.listForUser(auth.userId) } };
   }
@@ -57,10 +72,11 @@ export class WorkspaceController {
   @RateLimit({ limit: 10, ttlMs: 60_000 })
   async create(
     @Req() request: Request,
+    @Headers('idempotency-key') key: string | undefined,
     @Body(new ZodPipe(createWorkspaceSchema)) body: z.infer<typeof createWorkspaceSchema>,
   ): Promise<{ data: { id: string; name: string; timezone: string; version: number } }> {
     const auth = requireRequestAuth(request);
-    const workspace = await this.workspaces.create(auth.userId, body);
+    const workspace = await this.workspaces.create(auth.userId, body, assertIdempotencyKey(key));
     return { data: workspace };
   }
 
@@ -93,7 +109,9 @@ export class WorkspaceController {
   }
 
   @Get(':workspaceId/members')
-  async members(@Req() request: Request): Promise<{ data: { members: Awaited<ReturnType<WorkspaceService['listMembers']>> } }> {
+  async members(
+    @Req() request: Request,
+  ): Promise<{ data: { members: Awaited<ReturnType<WorkspaceService['listMembers']>> } }> {
     const context = workspaceContext(request);
     return { data: { members: await this.workspaces.listMembers(context.workspaceId) } };
   }
@@ -109,7 +127,13 @@ export class WorkspaceController {
     const auth = requireRequestAuth(request);
     const context = workspaceContext(request);
     return {
-      data: await this.workspaces.changeRole(context.workspaceId, auth.userId, userId, body.role, ifMatch),
+      data: await this.workspaces.changeRole(
+        context.workspaceId,
+        auth.userId,
+        userId,
+        body.role,
+        ifMatch,
+      ),
     };
   }
 

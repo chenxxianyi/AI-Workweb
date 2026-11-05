@@ -1,10 +1,24 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import { requireRequestAuth } from '../auth/auth-context.js';
 import { WorkspaceRoleRequired } from '../workspaces/permissions.js';
 import { workspaceContext } from '../workspaces/workspace.guard.js';
+import { assertIdempotencyKey } from '../../common/idempotency.js';
 import { ProjectService, type ProjectFilter } from './project.service.js';
 
 const stageSchema = z.enum(['planning', 'developing', 'paused', 'done']);
@@ -43,7 +57,9 @@ export class ProjectController {
   ): Promise<{ data: Awaited<ReturnType<ProjectService['list']>> }> {
     const context = workspaceContext(request);
     const allowed: ProjectFilter[] = ['active', 'inactive', 'archived', 'all'];
-    const parsedFilter = allowed.includes(filter as ProjectFilter) ? (filter as ProjectFilter) : 'active';
+    const parsedFilter = allowed.includes(filter as ProjectFilter)
+      ? (filter as ProjectFilter)
+      : 'active';
     const parsedLimit = limit === undefined ? undefined : Number(limit);
     const result = await this.projects.list(context.workspaceId, {
       filter: parsedFilter,
@@ -59,21 +75,27 @@ export class ProjectController {
   @WorkspaceRoleRequired('business.write')
   async create(
     @Req() request: Request,
+    @Headers('idempotency-key') key: string | undefined,
     @Body(new ZodPipe(createSchema)) body: z.infer<typeof createSchema>,
   ): Promise<{ data: Awaited<ReturnType<ProjectService['create']>> }> {
     const auth = requireRequestAuth(request);
     const context = workspaceContext(request);
     return {
-      data: await this.projects.create(context.workspaceId, auth.userId, {
-        name: body.name,
-        ...(body.repo === undefined ? {} : { repo: body.repo }),
-        ...(body.stack === undefined ? {} : { stack: body.stack }),
-        ...(body.stage === undefined ? {} : { stage: body.stage }),
-        ...(body.nextStep === undefined ? {} : { nextStep: body.nextStep }),
-        ...(body.progressManual === undefined ? {} : { progressManual: body.progressManual }),
-        ...(body.manualProgress === undefined ? {} : { manualProgress: body.manualProgress }),
-        ...(body.color === undefined ? {} : { color: body.color }),
-      }),
+      data: await this.projects.create(
+        context.workspaceId,
+        auth.userId,
+        {
+          name: body.name,
+          ...(body.repo === undefined ? {} : { repo: body.repo }),
+          ...(body.stack === undefined ? {} : { stack: body.stack }),
+          ...(body.stage === undefined ? {} : { stage: body.stage }),
+          ...(body.nextStep === undefined ? {} : { nextStep: body.nextStep }),
+          ...(body.progressManual === undefined ? {} : { progressManual: body.progressManual }),
+          ...(body.manualProgress === undefined ? {} : { manualProgress: body.manualProgress }),
+          ...(body.color === undefined ? {} : { color: body.color }),
+        },
+        assertIdempotencyKey(key),
+      ),
     };
   }
 
@@ -121,7 +143,13 @@ export class ProjectController {
     const auth = requireRequestAuth(request);
     const context = workspaceContext(request);
     return {
-      data: await this.projects.setArchived(context.workspaceId, auth.userId, projectId, ifMatch, true),
+      data: await this.projects.setArchived(
+        context.workspaceId,
+        auth.userId,
+        projectId,
+        ifMatch,
+        true,
+      ),
     };
   }
 
@@ -136,7 +164,13 @@ export class ProjectController {
     const auth = requireRequestAuth(request);
     const context = workspaceContext(request);
     return {
-      data: await this.projects.setArchived(context.workspaceId, auth.userId, projectId, ifMatch, false),
+      data: await this.projects.setArchived(
+        context.workspaceId,
+        auth.userId,
+        projectId,
+        ifMatch,
+        false,
+      ),
     };
   }
 

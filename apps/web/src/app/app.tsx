@@ -1,9 +1,10 @@
 import { RouterProvider } from 'react-router-dom';
 import { QueryProvider } from '../providers/query-provider';
-import { ThemeProvider } from '../providers/theme-provider';
+import { ServerThemeProvider } from '../providers/server-theme-provider';
 import { AuthProvider } from '../providers/auth-provider';
 import { WorkspaceProvider } from '../providers/workspace-provider';
 import { router } from './router';
+import { SnapshotProvider } from '../offline/snapshot-provider';
 
 /**
  * 应用根（F07/F11）：主题 → 查询缓存 → 认证 → 空间上下文 → 路由。
@@ -11,14 +12,16 @@ import { router } from './router';
  */
 export function App(): React.JSX.Element {
   return (
-    <ThemeProvider>
-      <QueryProvider>
-        <AuthProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <ServerThemeProvider>
           <WorkspaceProvider>
-            <RouterProvider router={router} />
+            <SnapshotProvider>
+              <RouterProvider router={router} />
+            </SnapshotProvider>
           </WorkspaceProvider>
-        </AuthProvider>
-      </QueryProvider>
-    </ThemeProvider>
+        </ServerThemeProvider>
+      </AuthProvider>
+    </QueryProvider>
   );
 }

@@ -14,6 +14,7 @@ generator client {
   moduleFormat           = "esm"
   generatedFileExtension = "ts"
   importFileExtension    = "js"
+  previewFeatures        = ["relationJoins"]
 }
 
 datasource db {

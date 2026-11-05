@@ -45,20 +45,13 @@ export interface CsrfResponse {
   expiresAt: string;
 }
 
-/** 从 Cookie 读取 CSRF 令牌（服务端同时下发 cookie 与响应体，二者一致） */
-export function readCsrfCookie(): string | undefined {
-  if (typeof document === 'undefined') return undefined;
-  const match = /(?:^|;\s*)sfs_csrf=([^;]+)/.exec(document.cookie);
-  return match?.[1] === undefined ? undefined : decodeURIComponent(match[1]);
-}
-
 /**
  * 保证客户端持有可用的 CSRF 令牌。
  * - 优先用内存里的（登录后由服务端轮换）
- * - 内存没有时读 Cookie，再没有就请求 GET /auth/csrf
+ * - 内存没有时请求当前同源 GET /auth/csrf，避免读取另一环境的 Cookie
  */
 export async function ensureCsrfToken(force = false): Promise<string> {
-  const existing = force ? undefined : (apiClient.getCsrfToken() ?? readCsrfCookie());
+  const existing = force ? undefined : apiClient.getCsrfToken();
   if (existing !== undefined && existing !== '') {
     apiClient.setCsrfToken(existing);
     return existing;

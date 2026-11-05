@@ -47,6 +47,7 @@ export interface LedgerFilters {
 export interface CreateLedgerInput {
   recordDate: string;
   projectId?: string | null;
+  entryId?: string | null;
   tool: string;
   scene: string;
   minutes: number;
@@ -92,16 +93,24 @@ export const ledgerApi = {
     return apiClient.get<LedgerList>(`/workspaces/${workspaceId}/ledger${query}`);
   },
 
-  summary: (workspaceId: string, filters: { from?: string; to?: string; projectId?: string } = {}) => {
+  summary: (
+    workspaceId: string,
+    filters: { from?: string; to?: string; projectId?: string } = {},
+  ) => {
     const params = new URLSearchParams();
     if (filters.from !== undefined && filters.from !== '') params.set('from', filters.from);
     if (filters.to !== undefined && filters.to !== '') params.set('to', filters.to);
-    if (filters.projectId !== undefined && filters.projectId !== '') params.set('projectId', filters.projectId);
+    if (filters.projectId !== undefined && filters.projectId !== '')
+      params.set('projectId', filters.projectId);
     const query = params.toString() === '' ? '' : `?${params.toString()}`;
     return apiClient.get<LedgerSummary>(`/workspaces/${workspaceId}/ledger/summary${query}`);
   },
 
-  async create(workspaceId: string, input: CreateLedgerInput, idempotencyKey: string): Promise<LedgerRecord> {
+  async create(
+    workspaceId: string,
+    input: CreateLedgerInput,
+    idempotencyKey: string,
+  ): Promise<LedgerRecord> {
     await ensureCsrfToken();
     const result = await apiClient.post<{ record: LedgerRecord; replayed: boolean }>(
       `/workspaces/${workspaceId}/ledger`,
@@ -114,6 +123,16 @@ export const ledgerApi = {
   async remove(workspaceId: string, record: Pick<LedgerRecord, 'id' | 'version'>): Promise<void> {
     await ensureCsrfToken();
     await apiClient.del<{ status: string }>(`/workspaces/${workspaceId}/ledger/${record.id}`, {
+      ifMatch: record.version,
+    });
+  },
+  async update(
+    workspaceId: string,
+    record: Pick<LedgerRecord, 'id' | 'version'>,
+    input: CreateLedgerInput,
+  ): Promise<LedgerRecord> {
+    await ensureCsrfToken();
+    return apiClient.patch<LedgerRecord>(`/workspaces/${workspaceId}/ledger/${record.id}`, input, {
       ifMatch: record.version,
     });
   },

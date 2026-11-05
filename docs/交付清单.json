@@ -1,0 +1,43 @@
+{
+  "scope": "Windows本机开发与技术验收；最终FS052核验凭证为封存依据",
+  "release": "local-final-v5",
+  "url": "http://127.0.0.1:3000",
+  "staging": "http://127.0.0.1:3003",
+  "manifest": "运行包release.json；摘要见FS050/artifact-integrity-private.log",
+  "files": 21621,
+  "lockHash": "a814f3a14b873bfc03f043a4b40512a9b842a240263eaa2ca28bb72d8078f913",
+  "backup": {
+    "id": "1793855070890-1deeecbe",
+    "sha256": "482dbdb0d37b630f6a1c78e25250d0c6649d93aedbab8a8d496e67ff17d03c55",
+    "bytes": 81541,
+    "createdAt": "2026-11-05T05:04:30.951Z",
+    "tables": 24,
+    "location": ".data/backups/production，密钥另存受限backup-keys目录"
+  },
+  "validation": {
+    "unitTests": 200,
+    "postgresSuites": 26,
+    "productionCases": 14,
+    "responsiveCases": 90,
+    "initialObservation": "30min passed"
+  },
+  "observation": {
+    "startedAt": "2026-11-05T04:25:00.091Z",
+    "lastAt": "2026-11-05T05:04:01.993Z",
+    "samples": 40,
+    "failed": 0,
+    "alerts": 0,
+    "twentyFourHours": "后台继续，尚未结束，不提前写通过",
+    "report": ".data/runtime/production/observation-24h.json"
+  },
+  "checkpoints": "FS001～FS052；实际版本路径见全栈开发任务/任务进度.md，各manifest独立核验",
+  "credentials": "仅在受限runtime/production/credentials.txt，无密码写入交付文档",
+  "extensions": [
+    "Safari/物理设备/原生ChromeEdge交互未验证",
+    "异机灾备",
+    "公网HTTPS",
+    "外部CI/告警",
+    "完整自动强类型SDK"
+  ],
+  "createdAt": "2026-11-05T05:04:39.946Z"
+}

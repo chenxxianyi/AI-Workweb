@@ -270,3 +270,32 @@
     width: 100%;
   }
 }
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-4);
+}
+.charts figure {
+  margin: 0;
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.charts figcaption {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+.charts svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.charts p,
+.charts li {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.charts ul {
+  padding-left: 18px;
+}

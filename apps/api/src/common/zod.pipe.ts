@@ -1,5 +1,6 @@
 import { Injectable, type PipeTransform } from '@nestjs/common';
-import { ZodError, type ZodType } from 'zod';
+import type { ZodError} from 'zod';
+import { type ZodType } from 'zod';
 import type { FieldErrors } from '@aiwb/contracts';
 import { ApiException } from './api-exception.js';
 

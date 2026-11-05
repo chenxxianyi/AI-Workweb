@@ -100,7 +100,12 @@ interface CallResult {
   status: number;
   body: Record<string, unknown> & {
     data?: Record<string, unknown>;
-    error?: { code: string; message: string; fieldErrors?: Record<string, string[]>; currentVersion?: number };
+    error?: {
+      code: string;
+      message: string;
+      fieldErrors?: Record<string, string[]>;
+      currentVersion?: number;
+    };
     requestId?: string;
   };
   requestIdHeader: string | null;
@@ -147,7 +152,10 @@ check('合法外部 requestId 透传', () => {
 const bad1 = await call(base, '/test/tasks', { body: { priority: 'p0' } });
 check('缺字段返回 422 且 fieldErrors 指向 title', () => {
   assert(bad1.status === 422, `状态应为 422，实际 ${bad1.status}`);
-  assert(bad1.body.error?.code === 'VALIDATION_FAILED', `错误码应 VALIDATION_FAILED，实际 ${bad1.body.error?.code}`);
+  assert(
+    bad1.body.error?.code === 'VALIDATION_FAILED',
+    `错误码应 VALIDATION_FAILED，实际 ${bad1.body.error?.code}`,
+  );
   const titleErrors = bad1.body.error?.fieldErrors?.['title'];
   assert(Array.isArray(titleErrors) && titleErrors.length > 0, 'fieldErrors.title 应非空');
 });
@@ -259,7 +267,11 @@ check('日志脱敏且保留 requestId', () => {
 // ---- 汇总 ----
 const failed = results.filter((item) => !item.ok);
 for (const item of results) {
-  console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`);
+  console.log(
+    `${item.ok ? 'PASS' : 'FAIL'}  ${item.name}${item.ok ? '' : `  ← ${item.detail ?? ''}`}`,
+  );
 }
-console.log(`\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`);
+console.log(
+  `\n合计 ${results.length} 项，通过 ${results.length - failed.length}，失败 ${failed.length}`,
+);
 process.exitCode = failed.length === 0 ? 0 : 1;

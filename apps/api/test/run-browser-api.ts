@@ -1,0 +1,12 @@
+import { config as loadEnv } from 'dotenv';
+import { fileURLToPath } from 'node:url';
+loadEnv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)), quiet: true });
+const testUrl = process.env['DATABASE_URL_TEST'];
+if (!testUrl || !new URL(testUrl).pathname.endsWith('_test') || !['127.0.0.1','localhost'].includes(new URL(testUrl).hostname)) throw new Error('Browser API requires local *_test database');
+process.env['DATABASE_URL'] = testUrl;
+process.env['API_HOST'] = '127.0.0.1';
+process.env['API_PORT'] = process.env['BROWSER_API_PORT'] ?? '3001';
+process.env['PUBLIC_ORIGIN'] = process.env['BROWSER_PUBLIC_ORIGIN'] ?? 'http://127.0.0.1:5173';
+process.env['LOG_LEVEL'] = 'error';
+process.env['COOKIE_SECURE'] = 'false';
+await import('../src/main.js');

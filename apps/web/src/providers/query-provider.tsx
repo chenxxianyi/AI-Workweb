@@ -2,6 +2,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { ApiError } from '../services/api-client';
+export function activeRefreshInterval(query: {
+  state: { status: string; errorUpdateCount: number };
+}) {
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
+  return query.state.status === 'error'
+    ? Math.min(30000 * 2 ** Math.min(query.state.errorUpdateCount, 4), 300000)
+    : 30000;
+}
 
 /**
  * 服务端状态缓存（F07）。
@@ -16,6 +24,8 @@ export function createQueryClient(): QueryClient {
         staleTime: 30_000,
         gcTime: 5 * 60_000,
         refetchOnWindowFocus: true,
+        refetchInterval: activeRefreshInterval,
+        refetchIntervalInBackground: false,
         retry: (failureCount, error) => {
           if (error instanceof ApiError) {
             if (error.kind === 'http' && (error.status ?? 0) < 500) return false;

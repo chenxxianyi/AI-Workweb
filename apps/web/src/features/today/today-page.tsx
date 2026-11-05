@@ -1,4 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { PromoteTaskButton } from '../tasks/task-detail-page';
+import { DevelopmentLogs } from './development-logs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState, ErrorState, LoadingState, PageHeader, SkeletonRows } from '../../components/states';
 import { useWorkspace } from '../../providers/workspace-provider';
@@ -14,6 +17,8 @@ import {
   type UrgentTask,
 } from '../../services/tasks-api';
 import styles from './today.module.css';
+import { useRefreshGuard } from '../../offline/refresh-guard';
+import {useContentTiming} from '../../services/content-timing';
 
 /**
  * 今日聚焦（F16）。
@@ -43,6 +48,7 @@ export function TodayPage(): React.JSX.Element {
     enabled: workspaceId !== '' && businessDate !== undefined,
   });
 
+  useContentTiming(dashboardQuery.isSuccess&&todayTasksQuery.isSuccess);
   const yesterday = useMemo(() => {
     if (businessDate === undefined) return undefined;
     const [year, month, day] = businessDate.split('-').map(Number) as [number, number, number];
@@ -65,6 +71,7 @@ export function TodayPage(): React.JSX.Element {
 
   // ---------------------------------------------------------------- 快速添加
   const [title, setTitle] = useState('');
+  useRefreshGuard(!!title);
   const [priority, setPriority] = useState<TaskPriority>('p2');
   const [formError, setFormError] = useState<string | null>(null);
   const retryKey = useRef<string | null>(null);
@@ -363,6 +370,7 @@ export function TodayPage(): React.JSX.Element {
           )}
         </section>
       </div>
+      <DevelopmentLogs />
     </>
   );
 }
@@ -384,7 +392,8 @@ function TaskRow({
   return (
     <div className={styles.row} data-task-title={task.title}>
       <span className={`${styles.badge} ${styles[`p${task.priority}`]}`}>{PRIORITY_LABEL[task.priority]}</span>
-      <span className={styles.title}>{task.title}</span>
+      <Link className={styles.title} to={'/tasks/' + task.id}>{task.title}</Link>
+      <PromoteTaskButton taskId={task.id} version={task.version} />
       {task.status === 'doing' ? <span className={styles.badgeMuted}>进行中</span> : null}
       {rescheduling ? (
         <span className={styles.reschedule}>
@@ -447,7 +456,8 @@ function UrgentRow({
   return (
     <div className={styles.row} data-task-title={task.title}>
       <span className={tone === 'danger' ? styles.badgeDanger : styles.badgeWarn}>{reason}</span>
-      <span className={styles.title}>{task.title}</span>
+      <Link className={styles.title} to={'/tasks/' + task.id}>{task.title}</Link>
+      <PromoteTaskButton taskId={task.id} version={task.version} />
       {rescheduling ? (
         <span className={styles.reschedule}>
           <input

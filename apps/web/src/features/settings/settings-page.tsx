@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { PageHeader, LoadingState, ErrorState, Notice } from '../../components/states';
+import { Link } from 'react-router-dom';
+import { PageHeader, LoadingState, ErrorState } from '../../components/states';
 import { useAuth } from '../../providers/auth-provider';
 import { useTheme } from '../../providers/theme-provider';
 import { useWorkspace } from '../../providers/workspace-provider';
 import { authApi, describeApiError } from '../../services/auth-api';
 import styles from './settings-page.module.css';
+import { SpacePreferences } from './preferences/space-preferences';
+import { OfflineCacheSettings } from '../../offline/cache-settings';
 
 /**
  * 设置（F11 起可用）：
@@ -15,7 +18,7 @@ import styles from './settings-page.module.css';
  * - 空间：显示当前空间与角色（成员管理在 F34 页面化）
  */
 export function SettingsPage(): React.JSX.Element {
-  const { mode, resolved, setMode } = useTheme();
+  const { mode, resolved, setMode, syncError } = useTheme();
   const { user, refresh } = useAuth();
   const { workspace, role } = useWorkspace();
   const queryClient = useQueryClient();
@@ -43,7 +46,10 @@ export function SettingsPage(): React.JSX.Element {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordMessage, setPasswordMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<{
+    tone: 'ok' | 'error';
+    text: string;
+  } | null>(null);
 
   const passwordMutation = useMutation({
     mutationFn: () => authApi.changePassword(currentPassword, newPassword),
@@ -75,10 +81,13 @@ export function SettingsPage(): React.JSX.Element {
 
   return (
     <>
-      <PageHeader
-        title="设置"
-        description="外观、账号安全与会话管理在当前版本可用；成员管理、回收站与导入导出在后续任务开放。"
-      />
+      <PageHeader title="设置" description="管理外观、账号、空间与业务资料。" />
+      <p><Link to="/offline">本机草稿与待同步</Link></p>
+      <section className={styles.section}>
+        <h2>业务资料</h2>
+        <Link to="/settings/transfers">导入与导出</Link>
+        <p>先预览再确认导入；业务资料导出用于迁移。</p>
+      </section>
 
       <section className={styles.section} aria-labelledby="settings-profile">
         <h2 id="settings-profile" className={styles.heading}>
@@ -100,8 +109,13 @@ export function SettingsPage(): React.JSX.Element {
           外观
         </h2>
         <p className={styles.muted}>
-          当前：{mode === 'system' ? `跟随系统（${resolved === 'dark' ? '深色' : '浅色'}）` : mode === 'dark' ? '深色' : '浅色'}
-          。偏好保存在本机，F33 接入服务端同步。
+          当前：
+          {mode === 'system'
+            ? `跟随系统（${resolved === 'dark' ? '深色' : '浅色'}）`
+            : mode === 'dark'
+              ? '深色'
+              : '浅色'}
+          。偏好保存在服务器，并在本机缓存以便首屏显示。
         </p>
         <div className={styles.row}>
           {(
@@ -122,7 +136,21 @@ export function SettingsPage(): React.JSX.Element {
             </button>
           ))}
         </div>
+        {syncError ? <p role="alert">{syncError}</p> : null}
       </section>
+
+      <SpacePreferences />
+      <OfflineCacheSettings />
+      {role === 'owner' ? (
+        <section className={styles.section}>
+          <h2>空间管理</h2>
+          <div className={styles.row}>
+            <Link to="/settings/team">成员与邀请</Link>
+            <Link to="/settings/maintenance">回收站与空间维护</Link>
+            <Link to="/settings/audit">操作审计</Link>
+          </div>
+        </section>
+      ) : null}
 
       <section className={styles.section} aria-labelledby="settings-password">
         <h2 id="settings-password" className={styles.heading}>
@@ -230,16 +258,6 @@ export function SettingsPage(): React.JSX.Element {
             ) : null}
           </div>
         ) : null}
-      </section>
-
-      <section className={styles.section} aria-labelledby="settings-later">
-        <h2 id="settings-later" className={styles.heading}>
-          后续开放
-        </h2>
-        <Notice>
-          成员与邀请（F34 页面化）、回收站（F34）、导入导出（F32）、空间时区（F33）将在对应任务接入；
-          当前不显示不可用入口，也不伪造成功状态。
-        </Notice>
       </section>
     </>
   );

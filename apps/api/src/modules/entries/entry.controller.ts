@@ -87,6 +87,22 @@ export class EntryController {
     return { data: await this.entries.get(context.workspaceId, entryId) };
   }
 
+  @Get('entries/:entryId/usage')
+  async usage(@Req() request: Request, @Param('entryId', new ZodPipe(z.uuid())) entryId: string) {
+    return { data: await this.entries.usage(workspaceContext(request).workspaceId, entryId) };
+  }
+
+  @Post('entries/:entryId/usage')
+  @HttpCode(200)
+  async recordUsage(
+    @Req() request: Request, @Param('entryId', new ZodPipe(z.uuid())) entryId: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body(new ZodPipe(z.strictObject({}))) _body: Record<string, never>,
+  ) {
+    const result = await this.entries.recordUsage(workspaceContext(request).workspaceId, requireRequestAuth(request).userId, entryId, assertIdempotencyKey(key));
+    return { data: { ...result.data, replayed: result.replayed } };
+  }
+
   @Patch('entries/:entryId')
   @WorkspaceRoleRequired('business.write')
   async update(

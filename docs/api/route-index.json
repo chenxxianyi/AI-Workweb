@@ -1,0 +1,604 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/csrf-cookie-name",
+    "public": true,
+    "minRole": null,
+    "handler": "AuthController.csrfCookieName"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/csrf",
+    "public": true,
+    "minRole": null,
+    "handler": "AuthController.csrf"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/invitations/accept",
+    "public": true,
+    "minRole": null,
+    "handler": "InviteAcceptController.accept"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "public": true,
+    "minRole": null,
+    "handler": "AuthController.login"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "public": false,
+    "minRole": null,
+    "handler": "AuthController.logout"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/me",
+    "public": false,
+    "minRole": null,
+    "handler": "AuthController.me"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/auth/password",
+    "public": false,
+    "minRole": null,
+    "handler": "AuthController.changePassword"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/recovery/complete",
+    "public": true,
+    "minRole": null,
+    "handler": "AuthController.completeRecovery"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/auth/sessions/{id}",
+    "public": false,
+    "minRole": null,
+    "handler": "AuthController.revokeSession"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/auth/sessions",
+    "public": false,
+    "minRole": null,
+    "handler": "AuthController.revokeOtherSessions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/sessions",
+    "public": false,
+    "minRole": null,
+    "handler": "AuthController.listSessions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/health/live",
+    "public": true,
+    "minRole": null,
+    "handler": "HealthController.live"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/health/ready",
+    "public": true,
+    "minRole": null,
+    "handler": "HealthController.ready"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/users/me/preferences",
+    "public": false,
+    "minRole": null,
+    "handler": "UserPreferencesController.get"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/users/me/preferences",
+    "public": false,
+    "minRole": null,
+    "handler": "UserPreferencesController.update"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/analytics/monthly",
+    "public": false,
+    "minRole": null,
+    "handler": "AnalyticsController.monthly"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/analytics/weekly",
+    "public": false,
+    "minRole": null,
+    "handler": "AnalyticsController.weekly"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/audit-events",
+    "public": false,
+    "minRole": "owner",
+    "handler": "MaintenanceController.audit"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/dashboard/today",
+    "public": false,
+    "minRole": null,
+    "handler": "DashboardController.today"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}/revisions/{revisionId}/restore",
+    "public": false,
+    "minRole": "editor",
+    "handler": "EntryController.restore"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}/revisions",
+    "public": false,
+    "minRole": null,
+    "handler": "EntryController.revisions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}/status",
+    "public": false,
+    "minRole": "editor",
+    "handler": "EntryController.status"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}/usage",
+    "public": false,
+    "minRole": null,
+    "handler": "EntryController.usage"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}/usage",
+    "public": false,
+    "minRole": null,
+    "handler": "EntryController.recordUsage"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "EntryController.remove"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}",
+    "public": false,
+    "minRole": null,
+    "handler": "EntryController.detail"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}/entries/{entryId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "EntryController.update"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/entries",
+    "public": false,
+    "minRole": null,
+    "handler": "EntryController.list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/entries",
+    "public": false,
+    "minRole": "editor",
+    "handler": "EntryController.create"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/exports",
+    "public": false,
+    "minRole": "editor",
+    "handler": "TransfersController.create"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/imports/{jobId}/cancel",
+    "public": false,
+    "minRole": "owner",
+    "handler": "ImportsController.cancel"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/imports/{jobId}/commit",
+    "public": false,
+    "minRole": "owner",
+    "handler": "ImportsController.commit"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/imports/{jobId}/items",
+    "public": false,
+    "minRole": "owner",
+    "handler": "ImportsController.items"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/imports/{jobId}/recovery",
+    "public": false,
+    "minRole": "owner",
+    "handler": "ImportsController.recovery"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/imports/preview",
+    "public": false,
+    "minRole": "owner",
+    "handler": "ImportsController.upload"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/invitations/{id}",
+    "public": false,
+    "minRole": "owner",
+    "handler": "WorkspaceController.revokeInvite"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/invitations",
+    "public": false,
+    "minRole": "owner",
+    "handler": "WorkspaceController.listInvites"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/invitations",
+    "public": false,
+    "minRole": "owner",
+    "handler": "WorkspaceController.createInvite"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/ledger/{recordId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "LedgerController.remove"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/ledger/{recordId}",
+    "public": false,
+    "minRole": null,
+    "handler": "LedgerController.detail"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}/ledger/{recordId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "LedgerController.update"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/ledger/summary",
+    "public": false,
+    "minRole": null,
+    "handler": "LedgerController.summary"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/ledger",
+    "public": false,
+    "minRole": null,
+    "handler": "LedgerController.list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/ledger",
+    "public": false,
+    "minRole": "editor",
+    "handler": "LedgerController.create"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/logs/{id}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "LogsController.remove"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}/logs/{id}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "LogsController.update"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/logs",
+    "public": false,
+    "minRole": null,
+    "handler": "LogsController.list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/logs",
+    "public": false,
+    "minRole": "editor",
+    "handler": "LogsController.create"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/maintenance/clear",
+    "public": false,
+    "minRole": "owner",
+    "handler": "MaintenanceController.clear"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/members/{userId}",
+    "public": false,
+    "minRole": null,
+    "handler": "WorkspaceController.removeMember"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}/members/{userId}",
+    "public": false,
+    "minRole": "owner",
+    "handler": "WorkspaceController.changeRole"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/members",
+    "public": false,
+    "minRole": null,
+    "handler": "WorkspaceController.members"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/offline-operations/{key}",
+    "public": false,
+    "minRole": null,
+    "handler": "OfflineController.result"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/offline-operations/context",
+    "public": false,
+    "minRole": null,
+    "handler": "OfflineController.context"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/offline-operations",
+    "public": false,
+    "minRole": "editor",
+    "handler": "OfflineController.apply"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/preferences/reminder",
+    "public": false,
+    "minRole": null,
+    "handler": "SpacePreferencesController.claim"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/preferences",
+    "public": false,
+    "minRole": null,
+    "handler": "SpacePreferencesController.get"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/projects/{projectId}/archive",
+    "public": false,
+    "minRole": "editor",
+    "handler": "ProjectController.archive"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/projects/{projectId}/overview",
+    "public": false,
+    "minRole": null,
+    "handler": "ProjectController.overview"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/projects/{projectId}/unarchive",
+    "public": false,
+    "minRole": "editor",
+    "handler": "ProjectController.unarchive"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/projects/{projectId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "ProjectController.remove"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/projects/{projectId}",
+    "public": false,
+    "minRole": null,
+    "handler": "ProjectController.detail"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}/projects/{projectId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "ProjectController.update"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/projects",
+    "public": false,
+    "minRole": null,
+    "handler": "ProjectController.list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/projects",
+    "public": false,
+    "minRole": "editor",
+    "handler": "ProjectController.create"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/search/entries",
+    "public": false,
+    "minRole": null,
+    "handler": "SearchController.entries"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/search/organize",
+    "public": false,
+    "minRole": null,
+    "handler": "SearchController.organize"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/search/related/{entryId}",
+    "public": false,
+    "minRole": null,
+    "handler": "SearchController.related"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/tags",
+    "public": false,
+    "minRole": null,
+    "handler": "EntryController.tags"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/tasks/{taskId}/promote",
+    "public": false,
+    "minRole": "editor",
+    "handler": "TaskController.promote"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/tasks/{taskId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "TaskController.remove"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/tasks/{taskId}",
+    "public": false,
+    "minRole": null,
+    "handler": "TaskController.detail"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}/tasks/{taskId}",
+    "public": false,
+    "minRole": "editor",
+    "handler": "TaskController.update"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/tasks/postpone-yesterday",
+    "public": false,
+    "minRole": "editor",
+    "handler": "TaskController.postpone"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/tasks",
+    "public": false,
+    "minRole": null,
+    "handler": "TaskController.list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/tasks",
+    "public": false,
+    "minRole": "editor",
+    "handler": "TaskController.create"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/transfers/{jobId}/download",
+    "public": false,
+    "minRole": null,
+    "handler": "TransfersController.download"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/transfers/{jobId}",
+    "public": false,
+    "minRole": null,
+    "handler": "TransfersController.status"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/transfers",
+    "public": false,
+    "minRole": null,
+    "handler": "TransfersController.list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/trash/{type}/{id}/restore",
+    "public": false,
+    "minRole": "owner",
+    "handler": "MaintenanceController.restore"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/trash/{type}/{id}",
+    "public": false,
+    "minRole": "owner",
+    "handler": "MaintenanceController.purge"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/trash",
+    "public": false,
+    "minRole": "owner",
+    "handler": "MaintenanceController.list"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}",
+    "public": false,
+    "minRole": null,
+    "handler": "WorkspaceController.detail"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}",
+    "public": false,
+    "minRole": "owner",
+    "handler": "WorkspaceController.update"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/workspaces",
+    "public": false,
+    "minRole": null,
+    "handler": "WorkspaceController.list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/workspaces",
+    "public": false,
+    "minRole": null,
+    "handler": "WorkspaceController.create"
+  }
+]

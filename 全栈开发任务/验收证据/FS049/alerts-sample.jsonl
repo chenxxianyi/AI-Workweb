@@ -1,0 +1,2 @@
+{"at":"2026-11-05T03:55:22.905Z","id":"api","state":"firing","severity":"critical","message":"连续3次API就绪探测失败"}
+{"at":"2026-11-05T03:55:29.055Z","id":"api","state":"resolved","severity":"info","message":"对应检查已恢复"}

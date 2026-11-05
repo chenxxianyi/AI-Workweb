@@ -2,7 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ApiException } from '../../common/api-exception.js';
 import { PrismaService } from '../../common/prisma.module.js';
 import type { PrismaClient } from '../../generated/prisma/client.js';
-import { emailLocalPart, hashOpaqueToken, hashPassword, normalizeEmail, validatePasswordPolicy } from '../auth/password.js';
+import {
+  emailLocalPart,
+  hashOpaqueToken,
+  hashPassword,
+  normalizeEmail,
+  validatePasswordPolicy,
+} from '../auth/password.js';
 import { createOpaqueToken } from '../auth/password.js';
 import type { WorkspaceRole } from './permissions.js';
 
@@ -40,9 +46,13 @@ export class InviteService {
   ): Promise<CreatedInvite> {
     if (input.role === 'owner') {
       // 直接邀请 Owner 容易造成权限失配；Owner 转移应走显式接口（后续任务）
-      throw new ApiException('VALIDATION_FAILED', '邀请不能直接授予 Owner，请先邀请后再转移所有权', {
-        fieldErrors: { role: ['不能直接邀请 Owner'] },
-      });
+      throw new ApiException(
+        'VALIDATION_FAILED',
+        '邀请不能直接授予 Owner，请先邀请后再转移所有权',
+        {
+          fieldErrors: { role: ['不能直接邀请 Owner'] },
+        },
+      );
     }
     const email = normalizeEmail(input.email);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -198,7 +208,10 @@ export class InviteService {
             fieldErrors: { password: ['首次加入需要设置密码'] },
           });
         }
-        const violations = validatePasswordPolicy(input.password, emailLocalPart(invite.emailNormalized));
+        const violations = validatePasswordPolicy(
+          input.password,
+          emailLocalPart(invite.emailNormalized),
+        );
         if (violations.length > 0) {
           throw new ApiException('VALIDATION_FAILED', '密码不符合要求', {
             fieldErrors: { password: violations.map((item) => item.message) },
@@ -207,7 +220,8 @@ export class InviteService {
         const user = await client.user.create({
           data: {
             emailNormalized: invite.emailNormalized,
-            displayName: input.displayName?.trim() || invite.emailNormalized.split('@')[0] || '成员',
+            displayName:
+              input.displayName?.trim() || invite.emailNormalized.split('@')[0] || '成员',
             passwordHash: await hashPassword(input.password),
             passwordChangedAt: new Date(),
           },

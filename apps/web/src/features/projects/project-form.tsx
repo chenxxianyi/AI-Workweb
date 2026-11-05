@@ -9,13 +9,15 @@ import {
   type ProjectStage,
 } from '../../services/projects-api';
 import styles from './projects.module.css';
+import { useRefreshGuard } from '../../offline/refresh-guard';
 
 interface ProjectFormProps {
+  conflict?: Project | null;
   mode: 'create' | 'edit';
   initial?: Project;
   submitting: boolean;
   error: unknown;
-  onSubmit: (input: ProjectInput) => void;
+  onSubmit: (input: ProjectInput, baseVersion?: number) => void;
   onCancel: () => void;
 }
 
@@ -24,6 +26,7 @@ interface ProjectFormProps {
  * 客户端校验只做即时提示，最终以服务端 422 为准（服务端是唯一边界）。
  */
 export function ProjectForm({
+  conflict,
   mode,
   initial,
   submitting,
@@ -39,10 +42,22 @@ export function ProjectForm({
   const [manual, setManual] = useState(initial?.progressMode === 'manual');
   const [manualProgress, setManualProgress] = useState(String(initial?.manualProgress ?? 0));
   const [localError, setLocalError] = useState<string | null>(null);
+  const [baseVersion, setBaseVersion] = useState(initial?.version);
+  useRefreshGuard(
+    name !== (initial?.name ?? '') ||
+      repo !== (initial?.repo ?? '') ||
+      stack !== (initial?.stack ?? []).join(', ') ||
+      stage !== (initial?.stage ?? 'planning') ||
+      nextStep !== (initial?.nextStep ?? '') ||
+      manual !== (initial?.progressMode === 'manual') ||
+      manualProgress !== String(initial?.manualProgress ?? 0),
+  );
 
   const fieldErrors =
     error instanceof ApiError && error.fieldErrors !== undefined
-      ? Object.entries(error.fieldErrors).map(([field, messages]) => `${field}：${messages.join('、')}`)
+      ? Object.entries(error.fieldErrors).map(
+          ([field, messages]) => `${field}：${messages.join('、')}`,
+        )
       : [];
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -63,19 +78,34 @@ export function ProjectForm({
       return;
     }
 
-    onSubmit({
-      name: name.trim(),
-      repo: repo.trim() === '' ? null : repo.trim(),
-      stack: stackInputToArray(stack),
-      stage,
-      nextStep: nextStep.trim(),
-      progressManual: manual,
-      manualProgress: manual ? manualValue : null,
-    });
+    onSubmit(
+      {
+        name: name.trim(),
+        repo: repo.trim() === '' ? null : repo.trim(),
+        stack: stackInputToArray(stack),
+        stage,
+        nextStep: nextStep.trim(),
+        progressManual: manual,
+        manualProgress: manual ? manualValue : null,
+      },
+      baseVersion,
+    );
   };
 
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
+      {conflict ? (
+        <section role="alert">
+          <h3>服务器项目版本 {conflict.version}</h3>
+          <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+            {JSON.stringify(conflict, null, 2)}
+          </pre>
+          <p>本地输入仍保留。比较并人工修改后，明确采用服务器版本，再点击保存。</p>
+          <button type="button" onClick={() => setBaseVersion(conflict.version)}>
+            采用版本 {conflict.version}，保留本地输入待合并
+          </button>
+        </section>
+      ) : null}
       <div className={styles.grid2}>
         <label className={styles.field}>
           <span className={styles.label}>项目名称 *</span>
@@ -142,11 +172,21 @@ export function ProjectForm({
         <legend className={styles.label}>进度</legend>
         <div className={styles.row}>
           <label className={styles.radio}>
-            <input type="radio" checked={!manual} onChange={() => setManual(false)} name="progressMode" />
+            <input
+              type="radio"
+              checked={!manual}
+              onChange={() => setManual(false)}
+              name="progressMode"
+            />
             <span>自动（按任务完成比例）</span>
           </label>
           <label className={styles.radio}>
-            <input type="radio" checked={manual} onChange={() => setManual(true)} name="progressMode" />
+            <input
+              type="radio"
+              checked={manual}
+              onChange={() => setManual(true)}
+              name="progressMode"
+            />
             <span>手动</span>
           </label>
           {manual ? (

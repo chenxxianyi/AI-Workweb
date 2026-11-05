@@ -46,6 +46,17 @@ const postponeSchema = z.strictObject({ dryRun: z.boolean().optional() });
 export class TaskController {
   constructor(@Inject(TaskService) private readonly tasks: TaskService) {}
 
+  @Post(':taskId/promote')
+  @HttpCode(201)
+  @WorkspaceRoleRequired('business.write')
+  async promote(
+    @Req() request: Request, @Param('taskId', new ZodPipe(z.uuid())) taskId: string,
+    @Headers('if-match') ifMatch: string | undefined, @Headers('idempotency-key') key: string | undefined,
+    @Body(new ZodPipe(z.strictObject({ newEntry: z.boolean().default(false) }))) body: { newEntry: boolean },
+  ) {
+    return { data: await this.tasks.promote(workspaceContext(request).workspaceId, requireRequestAuth(request).userId, taskId, ifMatch, assertIdempotencyKey(key), body.newEntry) };
+  }
+
   @Get()
   async list(
     @Req() request: Request,

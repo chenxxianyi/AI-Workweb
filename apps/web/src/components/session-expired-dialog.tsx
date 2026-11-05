@@ -1,47 +1,85 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../providers/auth-provider';
+import { describeApiError } from '../services/auth-api';
+import { ConfirmationDialog } from './confirmation-dialog';
 import styles from './session-expired-dialog.module.css';
-
-/**
- * 会话失效提示（F11）：任意请求返回 401 时出现。
- * - 保留当前页面与输入，只提示重新登录
- * - 登录后回到原路由（`next` 参数）
- * - 允许“稍后再登录”，但不伪造已登录状态
- */
+/** 在当前页面重新验证同一账号，避免导航卸载尚未提交的表单。 */
 export function SessionExpiredDialog(): React.JSX.Element | null {
-  const { sessionExpired, dismissSessionExpired } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
+  const { sessionExpired, dismissSessionExpired, login, user } = useAuth();
+  const [email, setEmail] = useState(''),
+    [password, setPassword] = useState(''),
+    [open, setOpen] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  useEffect(() => {
+    if (!sessionExpired) {
+      setPassword('');
+      setOpen(false);
+      setError('');
+    }
+  }, [sessionExpired]);
   if (!sessionExpired) return null;
-
-  const next = `${location.pathname}${location.search}`;
-
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="session-expired-title">
-      <div className={styles.dialog}>
-        <h2 id="session-expired-title" className={styles.title}>
-          登录已过期
-        </h2>
-        <p className={styles.body}>
-          你的会话已过期或被其他设备吊销。当前页面的输入不会丢失，重新登录后可继续。
-        </p>
-        <div className={styles.actions}>
-          <button type="button" className={styles.secondary} onClick={dismissSessionExpired}>
-            稍后处理
+    <ConfirmationDialog title="登录已过期" onClose={dismissSessionExpired} busy={busy}>
+      <p className={styles.body}>
+        当前输入仍保留。重新验证当前账号后可继续；账号权限仍以服务器为准。
+      </p>
+      {open ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            setError('');
+            void login(email, password)
+              .then(() => {
+                setPassword('');
+                setOpen(false);
+              })
+              .catch((error) => setError(describeApiError(error)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <label>
+            重新登录邮箱
+            <input
+              type="email"
+              autoComplete="username"
+              value={email}
+              readOnly={!!user?.email && user.email !== '离线只读'}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            当前账号密码
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+              required
+            />
+          </label>
+          <button type="submit" className={styles.primary} disabled={busy}>
+            {busy ? '验证中…' : '确认重新登录'}
           </button>
-          <button
-            type="button"
-            className={styles.primary}
-            onClick={() => {
-              dismissSessionExpired();
-              navigate(`/login?next=${encodeURIComponent(next)}`);
-            }}
-          >
-            重新登录
-          </button>
-        </div>
-      </div>
-    </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          className={styles.primary}
+          onClick={() => {
+            setEmail(user?.email === '离线只读' ? '' : (user?.email ?? ''));
+            setPassword('');
+            setError('');
+            setOpen(true);
+          }}
+        >
+          重新登录
+        </button>
+      )}
+      {error ? <p role="alert">{error}</p> : null}
+    </ConfirmationDialog>
   );
 }

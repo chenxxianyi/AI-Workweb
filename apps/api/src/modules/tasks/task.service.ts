@@ -41,6 +41,7 @@ export interface TaskUpdate {
 }
 
 export interface TaskView {
+  entries?: { id: string; title: string }[];
   id: string;
   workspaceId: string;
   projectId: string | null;
@@ -208,7 +209,32 @@ export class TaskService {
   async get(workspaceId: string, taskId: string): Promise<TaskView> {
     const task = await this.db.task.findFirst({ where: { id: taskId, workspaceId, deletedAt: null } });
     if (task === null) throw new ApiException('NOT_FOUND', '任务不存在');
-    return toView(task);
+    const linked = await this.db.taskEntry.findMany({ where: { workspaceId, taskId, entry: { workspaceId, deletedAt: null } }, select: { entry: { select: { id: true, title: true } } } });
+    return { ...toView(task), entries: linked.map((link) => link.entry) };
+  }
+
+  async promote(workspaceId: string, userId: string, taskId: string, ifMatch: string | undefined, key: string, newEntry: boolean) {
+    const expected = requireIfMatch(ifMatch);
+    const result = await runIdempotent(this.db, { workspaceId, userId, scope: 'task.promote:' + taskId, key, body: { taskId, expected, newEntry } }, async (tx) => {
+      const task = await tx.task.findFirst({ where: { id: taskId, workspaceId, deletedAt: null } });
+      if (task === null) throw new ApiException('NOT_FOUND', '任务不存在');
+      if (task.version !== expected) throw new ApiException('PRECONDITION_FAILED', '任务已更新，请刷新', { currentVersion: task.version });
+      if (!newEntry) {
+        const existing = await tx.taskEntry.findFirst({ where: { workspaceId, taskId, entry: { workspaceId, deletedAt: null } }, orderBy: { createdAt: 'desc' } });
+        if (existing) return { entryId: existing.entryId, taskVersion: task.version, created: false };
+      }
+      const locked = await tx.task.updateMany({ where: { id: taskId, workspaceId, version: expected, deletedAt: null }, data: { version: { increment: 1 } } });
+      if (locked.count !== 1) throw new ApiException('PRECONDITION_FAILED', '任务已更新，请刷新');
+      const project = task.projectId === null ? null : await tx.project.findFirst({ where: { id: task.projectId, workspaceId, deletedAt: null } });
+      const body = '**任务**：' + task.title + '\n\n**卡点**：' + (task.blocker ?? '') + '\n\n**解决方案**：\n';
+      if (Buffer.byteLength(body, 'utf8') > 20480) throw new ApiException('PAYLOAD_TOO_LARGE', '沉淀正文超过20KB');
+      const entry = await tx.entry.create({ data: { workspaceId, createdBy: userId, projectId: project?.id ?? null, type: 'troubleshoot', status: 'draft', title: [...(task.blocker || task.title)].slice(0, 200).join(''), body, source: 'task', rating: 3 } });
+      await tx.taskEntry.create({ data: { workspaceId, taskId, entryId: entry.id } });
+      await tx.auditEvent.create({ data: { workspaceId, actorId: userId, action: 'task.promoted', entityType: 'task', entityId: taskId, result: 'success', summary: '任务沉淀为知识：' + entry.id } });
+      await this.projects.touchActivity(tx, workspaceId, project?.id ?? null);
+      return { entryId: entry.id, taskVersion: expected + 1, created: true };
+    });
+    return { ...result.data, replayed: result.replayed };
   }
 
   /** 创建：必须由调用方提供幂等键；重复请求只产生一次变化 */

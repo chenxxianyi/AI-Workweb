@@ -7,6 +7,7 @@ export type EntryStatus = 'draft' | 'verified' | 'archived';
 export type EntryType = 'note' | 'design' | 'adr' | 'troubleshoot' | 'command';
 
 export interface Entry {
+  taskLinks?: { id: string; title: string }[];
   id: string;
   type: EntryType;
   title: string;
@@ -25,7 +26,7 @@ export interface Entry {
 }
 
 export interface EntryList {
-  entries: Entry[];
+  entries: Omit<Entry,'body'>[];
   nextCursor: string | null;
   hasMore: boolean;
 }

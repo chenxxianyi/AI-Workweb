@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ApiException } from '../../common/api-exception.js';
+import { runIdempotent } from '../../common/idempotency.js';
 import { PrismaService } from '../../common/prisma.module.js';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import { parseEtag } from '@aiwb/contracts';
@@ -71,6 +72,7 @@ export class WorkspaceService {
   async create(
     userId: string,
     input: { name: string; timezone?: string },
+    key: string,
   ): Promise<{ id: string; name: string; timezone: string; version: number }> {
     const name = input.name.trim();
     if (name.length === 0 || name.length > 100) {
@@ -87,32 +89,42 @@ export class WorkspaceService {
       });
     }
 
-    return this.db.$transaction(async (tx) => {
-      const client = tx as unknown as PrismaClient;
-      const workspace = await client.workspace.create({
-        data: { name, timezone, createdBy: userId },
-      });
-      await client.workspaceMember.create({
-        data: { workspaceId: workspace.id, userId, role: 'owner' },
-      });
-      await client.auditEvent.create({
-        data: {
-          workspaceId: workspace.id,
-          actorId: userId,
-          action: 'workspace.created',
-          entityType: 'workspace',
-          entityId: workspace.id,
-          result: 'success',
-          summary: `创建空间：${name}`,
-        },
-      });
-      return {
-        id: workspace.id,
-        name: workspace.name,
-        timezone: workspace.timezone,
-        version: workspace.version,
-      };
-    });
+    const result = await runIdempotent(
+      this.db,
+      {
+        userId,
+        workspaceId: '00000000-0000-0000-0000-000000000000',
+        scope: 'workspace.create',
+        key,
+        body: input,
+      },
+      async (client) => {
+        const workspace = await client.workspace.create({
+          data: { name, timezone, createdBy: userId },
+        });
+        await client.workspaceMember.create({
+          data: { workspaceId: workspace.id, userId, role: 'owner' },
+        });
+        await client.auditEvent.create({
+          data: {
+            workspaceId: workspace.id,
+            actorId: userId,
+            action: 'workspace.created',
+            entityType: 'workspace',
+            entityId: workspace.id,
+            result: 'success',
+            summary: `创建空间：${name}`,
+          },
+        });
+        return {
+          id: workspace.id,
+          name: workspace.name,
+          timezone: workspace.timezone,
+          version: workspace.version,
+        };
+      },
+    );
+    return result.data;
   }
 
   async update(
@@ -186,7 +198,9 @@ export class WorkspaceService {
       include: { user: { select: { id: true, displayName: true, emailNormalized: true } } },
       orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
     });
-    const owners = members.filter((member) => member.role === 'owner' && member.status === 'active');
+    const owners = members.filter(
+      (member) => member.role === 'owner' && member.status === 'active',
+    );
     return members.map((member) => ({
       userId: member.user.id,
       displayName: member.user.displayName,
@@ -195,8 +209,7 @@ export class WorkspaceService {
       status: member.status,
       joinedAt: member.joinedAt.toISOString(),
       version: member.version,
-      isLastOwner:
-        member.role === 'owner' && member.status === 'active' && owners.length === 1,
+      isLastOwner: member.role === 'owner' && member.status === 'active' && owners.length === 1,
     }));
   }
 
@@ -276,7 +289,9 @@ export class WorkspaceService {
         throw new ApiException('LAST_OWNER_PROTECTED', '至少需要保留一位 Owner');
       }
 
-      await client.workspaceMember.delete({ where: { workspaceId_userId: { workspaceId, userId: targetUserId } } });
+      await client.workspaceMember.delete({
+        where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      });
       // 移除后该用户的会话立即失效（下一次请求 401）
       const revoked = await client.session.updateMany({
         where: { userId: targetUserId, revokedAt: null },

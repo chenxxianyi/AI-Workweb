@@ -1,0 +1,8 @@
+{
+  "checks": 14,
+  "namespace": "f48-legacy-1793850643510",
+  "sourceSha256": "1e641827c8e5591fe044173a2811cdc01037e07efb28d2edbd647fa71dee0084",
+  "durationMs": 8698,
+  "release": "local-v3",
+  "signoff": "执行者技术验收，不代签真实用户业务验收"
+}

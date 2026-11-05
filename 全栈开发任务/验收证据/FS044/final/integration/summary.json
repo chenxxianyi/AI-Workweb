@@ -1,0 +1,130 @@
+{
+  "database": "aiwb_ci_1793849462061_test",
+  "host": "127.0.0.1",
+  "startedAt": "2026-11-05T03:32:58.259Z",
+  "suites": 24,
+  "passed": 24,
+  "expected": 24,
+  "results": [
+    {
+      "file": "auth-check.ts",
+      "exitCode": 0,
+      "ms": 6087
+    },
+    {
+      "file": "auth-http-check.ts",
+      "exitCode": 0,
+      "ms": 3673
+    },
+    {
+      "file": "session-check.ts",
+      "exitCode": 0,
+      "ms": 8550
+    },
+    {
+      "file": "workspace-check.ts",
+      "exitCode": 0,
+      "ms": 4461
+    },
+    {
+      "file": "project-check.ts",
+      "exitCode": 0,
+      "ms": 3780
+    },
+    {
+      "file": "task-check.ts",
+      "exitCode": 0,
+      "ms": 3968
+    },
+    {
+      "file": "dashboard-check.ts",
+      "exitCode": 0,
+      "ms": 4089
+    },
+    {
+      "file": "logs-check.ts",
+      "exitCode": 0,
+      "ms": 4884
+    },
+    {
+      "file": "entry-check.ts",
+      "exitCode": 0,
+      "ms": 3956
+    },
+    {
+      "file": "revision-check.ts",
+      "exitCode": 0,
+      "ms": 3085
+    },
+    {
+      "file": "search-check.ts",
+      "exitCode": 0,
+      "ms": 7162
+    },
+    {
+      "file": "usage-check.ts",
+      "exitCode": 0,
+      "ms": 4296
+    },
+    {
+      "file": "promote-check.ts",
+      "exitCode": 0,
+      "ms": 4401
+    },
+    {
+      "file": "ledger-check.ts",
+      "exitCode": 0,
+      "ms": 3963
+    },
+    {
+      "file": "analytics-check.ts",
+      "exitCode": 0,
+      "ms": 3495
+    },
+    {
+      "file": "exports-check.ts",
+      "exitCode": 0,
+      "ms": 5712
+    },
+    {
+      "file": "imports-preview-check.ts",
+      "exitCode": 0,
+      "ms": 4391
+    },
+    {
+      "file": "imports-commit-check.ts",
+      "exitCode": 0,
+      "ms": 4358
+    },
+    {
+      "file": "transfer-roundtrip-check.ts",
+      "exitCode": 0,
+      "ms": 3914
+    },
+    {
+      "file": "preferences-check.ts",
+      "exitCode": 0,
+      "ms": 4801
+    },
+    {
+      "file": "maintenance-check.ts",
+      "exitCode": 0,
+      "ms": 7818
+    },
+    {
+      "file": "offline.integration.ts",
+      "exitCode": 0,
+      "ms": 4680
+    },
+    {
+      "file": "conflicts.integration.ts",
+      "exitCode": 0,
+      "ms": 3129
+    },
+    {
+      "file": "isolation.integration.ts",
+      "exitCode": 0,
+      "ms": 4317
+    }
+  ]
+}

@@ -14,8 +14,8 @@ import { LedgerService, type LedgerView } from './ledger.service.js';
  */
 const createSchema = z.strictObject({
   recordDate: z.string().max(10),
-  projectId: z.string().max(64).nullish(),
-  entryId: z.string().max(64).nullish(),
+  projectId: z.uuid().nullish(),
+  entryId: z.uuid().nullish(),
   tool: z.string().max(32),
   scene: z.string().max(32),
   minutes: z.number().int(),
@@ -26,7 +26,7 @@ const createSchema = z.strictObject({
 
 const updateSchema = createSchema.partial();
 
-/** 开发日志（F17）*/
+/** AI使用台账（F26）*/
 @Controller('workspaces/:workspaceId/ledger')
 export class LedgerController {
   constructor(@Inject(LedgerService) private readonly ledger: LedgerService) {}

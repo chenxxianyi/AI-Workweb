@@ -2,6 +2,7 @@
   "name": "@aiwb/api",
   "version": "0.1.0",
   "private": true,
+  "files": ["dist"],
   "type": "module",
   "description": "AI 编程工作台后端 API（NestJS）",
   "scripts": {
@@ -22,6 +23,8 @@
     "test:entry": "tsx --tsconfig tsconfig.test.json test/entry-check.ts",
     "test:revision": "tsx --tsconfig tsconfig.test.json test/revision-check.ts",
     "test:search": "tsx --tsconfig tsconfig.test.json test/search-check.ts",
+    "test:usage": "tsx --tsconfig tsconfig.test.json test/usage-check.ts",
+    "test:promote": "tsx --tsconfig tsconfig.test.json test/promote-check.ts",
     "auth:bootstrap": "tsx src/cli/bootstrap-owner.ts",
     "auth:recover": "tsx src/cli/recover-account.ts",
     "auth:calibrate": "tsx src/cli/password-calibrate.ts"
@@ -41,6 +44,8 @@
     "pino": "10.4.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
+    "stream-chain": "4.4.1",
+    "stream-json": "3.8.0",
     "zod": "4.6.7"
   },
   "devDependencies": {

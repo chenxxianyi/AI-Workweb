@@ -1,0 +1,4 @@
+import {Client} from 'pg';
+import {config} from 'dotenv';
+import {resolve} from 'node:path';
+config({path:resolve('../../.env'),quiet:true});const url=new URL(process.env['DATABASE_URL_TEST']!);if(!['127.0.0.1','localhost'].includes(url.hostname)||!url.pathname.endsWith('_test'))throw new Error('local only');url.pathname='/aiwb_perf_test';const db=new Client({connectionString:url.toString()});await db.connect();try{const result=await db.query("SELECT state,wait_event,extract(epoch from(now()-xact_start)) as transaction_seconds,query FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid()");console.log(JSON.stringify(result.rows.map(r=>({state:r.state,wait:r.wait_event,transactionSeconds:r.transaction_seconds,table:['import_items','entries','tasks','ledger_records','import_entity_mappings','development_logs'].find(t=>r.query.includes(t))??'other'}))));}finally{await db.end();}
